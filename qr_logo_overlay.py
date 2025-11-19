@@ -199,15 +199,15 @@ def sample_qr_module_dark(qr_img: Image.Image, geo: QRGeometry,
 # ---------- Finder skipping ----------
 
 def in_finder(n: int, r: int, c: int) -> bool:
-    """Return True if (r,c) inside any 7x7 finder square (content coords)."""
-    # top-left
-    if (0 <= r <= 6) and (0 <= c <= 6):
+    """Return True if (r,c) inside any 7x7 finder square plus 1-module separator (content coords)."""
+    # top-left (7x7 finder + 1 module separator = 8x8)
+    if (0 <= r <= 7) and (0 <= c <= 7):
         return True
-    # top-right
-    if (0 <= r <= 6) and (n-7 <= c <= n-1):
+    # top-right (7x7 finder + 1 module separator)
+    if (0 <= r <= 7) and (n-8 <= c <= n-1):
         return True
-    # bottom-left
-    if (n-7 <= r <= n-1) and (0 <= c <= 6):
+    # bottom-left (7x7 finder + 1 module separator)
+    if (n-8 <= r <= n-1) and (0 <= c <= 7):
         return True
     return False
 

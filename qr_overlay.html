@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom QR Code Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background-color: #f9fafb;
+        }
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        .sidebar {
+            width: 320px;
+            background-color: white;
+            padding: 24px;
+            overflow-y: auto;
+            border-right: 1px solid #e5e7eb;
+        }
+        .preview-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+        }
+        .preview-container {
+            position: relative;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0 0 24px 0;
+        }
+        .section {
+            margin-bottom: 24px;
+        }
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        label.small {
+            font-size: 12px;
+            color: #4b5563;
+            margin-bottom: 4px;
+        }
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            width: 100%;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        button.primary {
+            background-color: #2563eb;
+            color: white;
+            margin-top: 8px;
+        }
+        button.primary:hover {
+            background-color: #1d4ed8;
+        }
+        button.secondary {
+            background-color: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+        button.secondary:hover {
+            background-color: #e5e7eb;
+        }
+        button.success {
+            background-color: #16a34a;
+            color: white;
+            padding: 12px 16px;
+        }
+        button.success:hover {
+            background-color: #15803d;
+        }
+        .file-input-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+        .divider {
+            text-align: center;
+            font-size: 14px;
+            color: #6b7280;
+            margin: 12px 0;
+        }
+        .hidden {
+            display: none;
+        }
+        .color-control {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        input[type="color"] {
+            width: 64px;
+            height: 40px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+        }
+        .palette-color {
+            width: 100%;
+            height: 50px;
+            cursor: pointer;
+            border: 2px solid #d1d5db;
+            transition: all 0.2s;
+        }
+        .palette-color:hover {
+            border-color: #2563eb;
+        }
+        .palette-color.selected {
+            border: 3px solid #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #e5e7eb;
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+            flex: 1;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #2563eb;
+            cursor: pointer;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #2563eb;
+            cursor: pointer;
+            border: none;
+        }
+        .range-full {
+            width: 100%;
+        }
+        .label-text {
+            font-size: 14px;
+        }
+        canvas {
+            border: 2px solid #d1d5db;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Controls -->
+        <div class="sidebar">
+            <h1>QR Code Generator</h1>
+
+            <!-- QR Input -->
+            <div class="section">
+                <label>QR Code Input</label>
+                <div>
+                    <div>
+                        <input
+                            type="text"
+                            id="qrText"
+                            value="https://example.com"
+                            placeholder="Enter URL or text"
+                        />
+                        <button
+                            id="generateBtn"
+                            class="primary"
+                        >
+                            Generate QR Code
+                        </button>
+                    </div>
+                    <div class="divider">OR</div>
+                    <div>
+                        <label class="file-input-label secondary">
+                            <span>📤 Upload QR Code</span>
+                            <input type="file" id="qrUpload" accept="image/*" class="hidden" />
+                        </label>
+                        <select id="qrSize" class="hidden" style="margin-top: 8px;">
+                            <option value="21">21×21</option>
+                            <option value="25" selected>25×25</option>
+                            <option value="29">29×29</option>
+                            <option value="33">33×33</option>
+                            <option value="37">37×37</option>
+                            <option value="41">41×41</option>
+                            <option value="45">45×45</option>
+                            <option value="49">49×49</option>
+                            <option value="53">53×53</option>
+                            <option value="57">57×57</option>
+                        </select>
+                        <div class="hidden" id="quietZoneContainer" style="margin-top: 8px;">
+                            <label class="small">Quiet Zone Size (pixels per side):</label>
+                            <input type="number" id="quietZone" min="0" max="100" value="16" />
+                            <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">Measure the white border in your QR image</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logo Upload -->
+            <div class="section">
+                <label>Background Logo</label>
+                <label class="file-input-label primary">
+                    <span>📤 Upload Logo</span>
+                    <input type="file" id="logoUpload" accept="image/*" class="hidden" />
+                </label>
+            </div>
+
+            <!-- Canvas Quiet Zone -->
+            <div class="section">
+                <label>Canvas Quiet Zone: <span id="canvasQuietZoneLabel">4</span> modules</label>
+                <input type="range" id="canvasQuietZone" min="0" max="8" value="4" class="range-full" />
+                <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">White border around QR on canvas (spec: 4)</div>
+            </div>
+
+            <!-- Module Size -->
+            <div class="section">
+                <label>Module Size: <span id="moduleSizeLabel">50</span>%</label>
+                <input type="range" id="moduleSize" min="20" max="100" value="50" class="range-full" />
+            </div>
+
+            <!-- Overlay Opacity -->
+            <div class="section">
+                <label>Overlay Opacity: <span id="overlayAlphaLabel">100</span>%</label>
+                <input type="range" id="overlayAlpha" min="0" max="100" value="100" class="range-full" />
+                <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">Lower values blend QR with logo but reduce scannability</div>
+            </div>
+
+            <!-- Background Fill -->
+            <div class="section">
+                <label>Background Fill</label>
+                <select id="backgroundFill" class="range-full" style="padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; background: white;">
+                    <option value="transparent">Transparent</option>
+                    <option value="light">Light Color</option>
+                    <option value="dark">Dark Color</option>
+                </select>
+                <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">Fill for areas without logo or when opacity &lt; 100%</div>
+            </div>
+
+            <!-- Finder Corner Radius -->
+            <div class="section">
+                <label>Finder Corners: <span id="finderRadiusLabel">0</span>%</label>
+                <input type="range" id="finderRadius" min="0" max="50" value="0" class="range-full" />
+            </div>
+
+            <!-- Dark Color -->
+            <div class="section">
+                <label>Dark Module Color</label>
+                <div class="color-control">
+                    <input type="color" id="darkColor" value="#000000" />
+                    <button id="darkEyedropper" class="secondary" style="width: 40px; padding: 8px;" title="Pick color from logo">
+                        <span style="font-size: 16px;">💧</span>
+                    </button>
+                    <input type="range" id="darkAlpha" min="0" max="1" step="0.01" value="1" style="flex: 1;" />
+                    <span id="darkAlphaLabel" class="label-text">100%</span>
+                </div>
+            </div>
+
+            <!-- Light Color -->
+            <div class="section">
+                <label>Light Module Color</label>
+                <div class="color-control">
+                    <input type="color" id="lightColor" value="#ffffff" />
+                    <button id="lightEyedropper" class="secondary" style="width: 40px; padding: 8px;" title="Pick color from logo">
+                        <span style="font-size: 16px;">💧</span>
+                    </button>
+                    <input type="range" id="lightAlpha" min="0" max="1" step="0.01" value="1" style="flex: 1;" />
+                    <span id="lightAlphaLabel" class="label-text">100%</span>
+                </div>
+            </div>
+
+            <!-- Color Palette Editor -->
+            <div class="section">
+                <label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" id="paletteToggle">
+                    <span>Color Palette</span>
+                    <span id="paletteArrow" style="transition: transform 0.2s;">▼</span>
+                </label>
+                <div id="paletteEditor" style="display: none; margin-top: 12px;">
+                    <div id="paletteInstructions" style="font-size: 11px; color: #6b7280; margin-bottom: 8px;">Click a color below to select it, then click modules on canvas to apply</div>
+
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px;">Dark Colors (4)</div>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+                            <input type="color" id="darkPalette0" class="palette-color" data-type="dark" data-index="0" />
+                            <input type="color" id="darkPalette1" class="palette-color" data-type="dark" data-index="1" />
+                            <input type="color" id="darkPalette2" class="palette-color" data-type="dark" data-index="2" />
+                            <input type="color" id="darkPalette3" class="palette-color" data-type="dark" data-index="3" />
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px;">Light Colors (4)</div>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+                            <input type="color" id="lightPalette0" class="palette-color" data-type="light" data-index="0" />
+                            <input type="color" id="lightPalette1" class="palette-color" data-type="light" data-index="1" />
+                            <input type="color" id="lightPalette2" class="palette-color" data-type="light" data-index="2" />
+                            <input type="color" id="lightPalette3" class="palette-color" data-type="light" data-index="3" />
+                        </div>
+                    </div>
+
+                    <div id="contrastWarning" style="display: none; background: #fef3c7; border: 1px solid #fbbf24; padding: 8px; border-radius: 4px; font-size: 11px; color: #92400e;">
+                        ⚠️ Low contrast detected between some colors. QR may not scan reliably.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logo Scale -->
+            <div class="section">
+                <label>Logo Scale: <span id="logoScaleLabel">100</span>%</label>
+                <input type="range" id="logoScale" min="50" max="200" value="100" class="range-full" />
+            </div>
+
+            <!-- Logo Position -->
+            <div class="section">
+                <label>Logo Position</label>
+                <button id="lockBtn" class="secondary" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <span id="lockIcon">🔓</span>
+                    <span id="lockText">Unlocked - Drag on Canvas</span>
+                </button>
+                <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">Click canvas to drag logo when unlocked</div>
+            </div>
+
+            <!-- Export -->
+            <button id="exportBtn" class="success">
+                <span>💾 Export PNG</span>
+            </button>
+        </div>
+
+        <!-- Preview -->
+        <div class="preview-area">
+            <div class="preview-container">
+                <!-- Canvas -->
+                <canvas id="canvas" width="600" height="600" style="cursor: move;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let state = {
+            qrText: 'https://example.com',
+            uploadedQR: null,
+            generatedQR: null,
+            useUploadedQR: false,
+            qrSize: 25,
+            quietZonePixels: 16,  // Quiet zone in source image (pixels)
+            canvasQuietZone: 4,   // Quiet zone to display on canvas (modules)
+            logoImage: null,
+            moduleSize: 50,       // Default to 50% for dithering effect
+            finderRadius: 0,
+            darkColor: '#000000',
+            darkAlpha: 1,
+            lightColor: '#ffffff',
+            lightAlpha: 1,
+            darkPalette: ['#000000', '#333333', '#1a1a1a', '#0d0d0d'],  // 4 dark colors
+            lightPalette: ['#ffffff', '#f0f0f0', '#e0e0e0', '#d0d0d0'], // 4 light colors
+            moduleColors: {},     // Per-module color overrides: {x,y} -> colorIndex
+            overlayAlpha: 1,      // Overall QR overlay opacity
+            backgroundFill: 'transparent',  // 'transparent', 'light', or 'dark'
+            logoScale: 100,
+            logoX: 50,
+            logoY: 50,
+            logoLocked: false
+        };
+
+        // Drag state
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+
+        // Color editing state
+        let editingMode = false;  // When true, clicking modules changes their color
+        let selectedPaletteColor = null;  // {type: 'dark'|'light', index: 0-3}
+
+        // Eyedropper state
+        let eyedropperMode = null; // 'dark' or 'light' or null
+
+        // Elements
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const qrText = document.getElementById('qrText');
+        const generateBtn = document.getElementById('generateBtn');
+        const qrUpload = document.getElementById('qrUpload');
+        const qrSizeSelect = document.getElementById('qrSize');
+        const quietZoneInput = document.getElementById('quietZone');
+        const quietZoneContainer = document.getElementById('quietZoneContainer');
+        const logoUpload = document.getElementById('logoUpload');
+        const canvasQuietZoneInput = document.getElementById('canvasQuietZone');
+        const moduleSize = document.getElementById('moduleSize');
+        const overlayAlpha = document.getElementById('overlayAlpha');
+        const backgroundFill = document.getElementById('backgroundFill');
+        const finderRadius = document.getElementById('finderRadius');
+        const darkColor = document.getElementById('darkColor');
+        const darkAlpha = document.getElementById('darkAlpha');
+        const darkEyedropper = document.getElementById('darkEyedropper');
+        const lightColor = document.getElementById('lightColor');
+        const lightAlpha = document.getElementById('lightAlpha');
+        const lightEyedropper = document.getElementById('lightEyedropper');
+        const logoScale = document.getElementById('logoScale');
+        const lockBtn = document.getElementById('lockBtn');
+        const lockIcon = document.getElementById('lockIcon');
+        const lockText = document.getElementById('lockText');
+        const paletteToggle = document.getElementById('paletteToggle');
+        const paletteArrow = document.getElementById('paletteArrow');
+        const paletteEditor = document.getElementById('paletteEditor');
+        const contrastWarning = document.getElementById('contrastWarning');
+        const exportBtn = document.getElementById('exportBtn');
+
+        // QR Code Generation
+        function generateQRCode() {
+            if (!state.qrText.trim()) return;
+
+            // Create a temporary container for QRCode.js
+            const tempDiv = document.createElement('div');
+            tempDiv.style.display = 'none';
+            document.body.appendChild(tempDiv);
+
+            try {
+                // Generate QR code using QRCode.js
+                const qr = new QRCode(tempDiv, {
+                    text: state.qrText,
+                    width: 200,
+                    height: 200,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+
+                // Wait for the QR code to be generated
+                setTimeout(() => {
+                    const qrImage = tempDiv.querySelector('img');
+                    if (qrImage) {
+                        state.generatedQR = qrImage.src;
+                        state.useUploadedQR = false;
+                        state.moduleColors = {};  // Clear manual color overrides
+
+                        // Auto-detect the generated QR code
+                        const img = new Image();
+                        img.onload = () => {
+                            const detected = detectQRGeometry(img);
+                            state.qrSize = detected.moduleCount;
+                            state.quietZonePixels = detected.quietZonePixels;
+                            console.log(`Generated: ${detected.moduleCount}×${detected.moduleCount} QR code with ${detected.quietZonePixels}px quiet zone`);
+
+                            // Auto-adjust logo scale to fit content area
+                            if (state.logoImage) {
+                                const totalModules = state.qrSize + 2 * state.canvasQuietZone;
+                                const contentScale = Math.round((state.qrSize / totalModules) * 100);
+                                state.logoScale = contentScale;
+                                logoScale.value = contentScale;
+                                document.getElementById('logoScaleLabel').textContent = contentScale;
+                            }
+
+                            drawCanvas();
+                        };
+                        img.src = state.generatedQR;
+                    }
+
+                    // Clean up temp div
+                    document.body.removeChild(tempDiv);
+                }, 100);
+            } catch (error) {
+                console.error('QR generation error:', error);
+                document.body.removeChild(tempDiv);
+                alert('Failed to generate QR code. Please check your input.');
+            }
+        }
+
+        function extractDominantColors(img) {
+            // Create temp canvas to analyze the logo
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = img.width;
+            tempCanvas.height = img.height;
+            tempCtx.drawImage(img, 0, 0);
+
+            const imageData = tempCtx.getImageData(0, 0, img.width, img.height);
+            const data = imageData.data;
+
+            // Collect dark and light colors with frequency counts
+            // Quantize to reduce near-duplicates (group similar colors)
+            const quantize = (val) => Math.min(255, Math.round(val / 4) * 4); // Reduce to 64 levels per channel, clamp to 255
+
+            const darkColors = {};
+            const lightColors = {};
+
+            for (let i = 0; i < data.length; i += 16) { // Sample every 4 pixels
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const a = data[i + 3];
+
+                // Skip transparent pixels
+                if (a < 128) continue;
+
+                const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+
+                // Quantize to reduce near-duplicates
+                const qR = quantize(r);
+                const qG = quantize(g);
+                const qB = quantize(b);
+                const colorKey = `${qR},${qG},${qB}`;
+
+                if (luminance < 128) {
+                    darkColors[colorKey] = (darkColors[colorKey] || 0) + 1;
+                } else {
+                    lightColors[colorKey] = (lightColors[colorKey] || 0) + 1;
+                }
+            }
+
+            // Extract top 4 most frequent colors from each category
+            const getTopColors = (colorFreqMap, count = 4) => {
+                // Sort by frequency (most common first)
+                const sorted = Object.entries(colorFreqMap)
+                    .sort((a, b) => b[1] - a[1]) // Sort by count descending
+                    .slice(0, count); // Take top N
+
+                // Convert to hex
+                return sorted.map(([colorKey, freq]) => {
+                    const [r, g, b] = colorKey.split(',').map(Number);
+                    return rgbToHex(r, g, b);
+                });
+            };
+
+            const rgbToHex = (r, g, b) => {
+                return '#' + [r, g, b].map(x => {
+                    const hex = Math.round(x).toString(16);
+                    return hex.length === 1 ? '0' + hex : hex;
+                }).join('');
+            };
+
+            // Extract 4 most common colors from each category
+            const darkPalette = getTopColors(darkColors, 4);
+            const lightPalette = getTopColors(lightColors, 4);
+
+            console.log('Dark colors found:', Object.keys(darkColors).length);
+            console.log('Light colors found:', Object.keys(lightColors).length);
+
+            // Debug: show top dark colors with their frequencies and luminance
+            const darkEntries = Object.entries(darkColors).sort((a, b) => b[1] - a[1]).slice(0, 10);
+            console.log('Top 10 dark colors by frequency:');
+            darkEntries.forEach(([color, count]) => {
+                const [r, g, b] = color.split(',').map(Number);
+                const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+                console.log(`  RGB(${r}, ${g}, ${b}) - Count: ${count}, Luminance: ${lum.toFixed(1)}`);
+            });
+
+            // Debug: show top light colors
+            const lightEntries = Object.entries(lightColors).sort((a, b) => b[1] - a[1]).slice(0, 10);
+            console.log('Top 10 light colors by frequency:');
+            lightEntries.forEach(([color, count]) => {
+                const [r, g, b] = color.split(',').map(Number);
+                const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+                console.log(`  RGB(${r}, ${g}, ${b}) - Count: ${count}, Luminance: ${lum.toFixed(1)}`);
+            });
+
+            console.log('Top 4 dark:', darkPalette);
+            console.log('Top 4 light:', lightPalette);
+
+            // Helper to get luminance from hex color (0-1 range)
+            const getLuminance = (hex) => {
+                const r = parseInt(hex.slice(1, 3), 16) / 255;
+                const g = parseInt(hex.slice(3, 5), 16) / 255;
+                const b = parseInt(hex.slice(5, 7), 16) / 255;
+                return 0.299 * r + 0.587 * g + 0.114 * b;
+            };
+
+            // Validate that dark colors are actually dark enough (luminance < 0.5 / 127.5)
+            // If not, replace with pure black
+            const validateDarkPalette = (palette) => {
+                if (palette.length === 0) return ['#000000', '#000000', '#000000', '#000000'];
+
+                const validated = palette.map(color => {
+                    const lum = getLuminance(color);
+                    return lum < 0.5 ? color : '#000000';
+                });
+
+                // Pad if needed
+                while (validated.length < 4) {
+                    validated.push(validated[validated.length - 1]);
+                }
+                return validated;
+            };
+
+            // Validate that light colors are actually light enough (luminance > 0.5 / 127.5)
+            // If not, replace with pure white
+            const validateLightPalette = (palette) => {
+                if (palette.length === 0) return ['#ffffff', '#ffffff', '#ffffff', '#ffffff'];
+
+                const validated = palette.map(color => {
+                    const lum = getLuminance(color);
+                    return lum > 0.5 ? color : '#ffffff';
+                });
+
+                // Pad if needed
+                while (validated.length < 4) {
+                    validated.push(validated[validated.length - 1]);
+                }
+                return validated;
+            };
+
+            const finalDarkPalette = validateDarkPalette(darkPalette);
+            const finalLightPalette = validateLightPalette(lightPalette);
+
+            // Sort dark palette: darkest to lightest (lowest luminance first)
+            finalDarkPalette.sort((a, b) => getLuminance(a) - getLuminance(b));
+
+            // Sort light palette: lightest to darkest (highest luminance first)
+            finalLightPalette.sort((a, b) => getLuminance(b) - getLuminance(a));
+
+            console.log('Dark palette luminance (darkest first):', finalDarkPalette.map(c => getLuminance(c).toFixed(2)));
+            console.log('Light palette luminance (lightest first):', finalLightPalette.map(c => getLuminance(c).toFixed(2)));
+
+            return {
+                darkPalette: finalDarkPalette,
+                lightPalette: finalLightPalette,
+                // Keep single colors for backward compatibility
+                dark: finalDarkPalette[0] || '#000000',
+                light: finalLightPalette[0] || '#ffffff'
+            };
+        }
+
+        // Calculate Euclidean distance between two RGB colors
+        function colorDistance(c1, c2) {
+            const dr = c1[0] - c2[0];
+            const dg = c1[1] - c2[1];
+            const db = c1[2] - c2[2];
+            return Math.sqrt(dr * dr + dg * dg + db * db);
+        }
+
+        // Calculate relative luminance for contrast checking (WCAG formula)
+        function getRelativeLuminance(hex) {
+            const r = parseInt(hex.slice(1, 3), 16) / 255;
+            const g = parseInt(hex.slice(3, 5), 16) / 255;
+            const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+            const toLinear = (c) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+
+            return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+        }
+
+        // Calculate contrast ratio between two colors
+        function getContrastRatio(hex1, hex2) {
+            const lum1 = getRelativeLuminance(hex1);
+            const lum2 = getRelativeLuminance(hex2);
+            const lighter = Math.max(lum1, lum2);
+            const darker = Math.min(lum1, lum2);
+            return (lighter + 0.05) / (darker + 0.05);
+        }
+
+        // Check contrast between all dark and light colors
+        function checkContrast() {
+            let hasLowContrast = false;
+            const minContrast = 3.0; // QR codes need at least 3:1 contrast
+
+            for (const darkColor of state.darkPalette) {
+                for (const lightColor of state.lightPalette) {
+                    const ratio = getContrastRatio(darkColor, lightColor);
+                    if (ratio < minContrast) {
+                        hasLowContrast = true;
+                        break;
+                    }
+                }
+                if (hasLowContrast) break;
+            }
+
+            contrastWarning.style.display = hasLowContrast ? 'block' : 'none';
+        }
+
+        // Convert RGB to HSL for better color matching
+        function rgbToHsl(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+
+            if (max === min) {
+                h = s = 0; // achromatic
+            } else {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                switch (max) {
+                    case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                    case g: h = ((b - r) / d + 2) / 6; break;
+                    case b: h = ((r - g) / d + 4) / 6; break;
+                }
+            }
+
+            return [h * 360, s, l]; // h in degrees, s and l as 0-1
+        }
+
+        // Calculate hue distance (circular, 0-180)
+        function hueDistance(h1, h2) {
+            const diff = Math.abs(h1 - h2);
+            return Math.min(diff, 360 - diff);
+        }
+
+        // Find best matching color from a palette based on a sampled RGB color
+        function findBestMatch(sampledRgb, palette) {
+            // Convert sampled color to HSL
+            const [sampledH, sampledS, sampledL] = rgbToHsl(sampledRgb[0], sampledRgb[1], sampledRgb[2]);
+
+            // Convert palette hex colors to RGB and HSL
+            const paletteData = palette.map(hex => {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                const [h, s, l] = rgbToHsl(r, g, b);
+                return { hex, rgb: [r, g, b], hsl: [h, s, l] };
+            });
+
+            // Find best match using weighted distance
+            let minDist = Infinity;
+            let bestIndex = 0;
+
+            for (let i = 0; i < paletteData.length; i++) {
+                const [h, s, l] = paletteData[i].hsl;
+
+                // For colors with saturation, prioritize hue matching
+                // For grays (low saturation), use RGB distance
+                // Use RGB if EITHER color is grayscale (hue is meaningless for achromatic colors)
+                const isGrayscale = sampledS < 0.15 || s < 0.15;
+
+                if (!isGrayscale) {
+                    // Both colored: weight hue heavily, with saturation and lightness as tiebreakers
+                    const hueDist = hueDistance(sampledH, h) / 180; // normalize to 0-1
+                    const satDist = Math.abs(sampledS - s);
+                    const lightDist = Math.abs(sampledL - l);
+                    const dist = hueDist * 5 + satDist * 1 + lightDist * 1; // hue weighted 5x
+
+                    if (dist < minDist) {
+                        minDist = dist;
+                        bestIndex = i;
+                    }
+                } else {
+                    // At least one is grayscale: use simple RGB distance
+                    const rgbDist = colorDistance(sampledRgb, paletteData[i].rgb);
+                    if (rgbDist < minDist) {
+                        minDist = rgbDist;
+                        bestIndex = i;
+                    }
+                }
+            }
+
+            return palette[bestIndex];
+        }
+
+        function detectQRGeometry(img) {
+            // Create temp canvas to analyze the image
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = img.width;
+            tempCanvas.height = img.height;
+            tempCtx.drawImage(img, 0, 0);
+            const imageData = tempCtx.getImageData(0, 0, img.width, img.height);
+            const data = imageData.data;
+
+            // Find edges of dark content (bounding box)
+            let minX = img.width, maxX = 0, minY = img.height, maxY = 0;
+
+            for (let y = 0; y < img.height; y++) {
+                for (let x = 0; x < img.width; x++) {
+                    const idx = (y * img.width + x) * 4;
+                    const r = data[idx];
+                    const g = data[idx + 1];
+                    const b = data[idx + 2];
+                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+                    // Consider pixel dark if below threshold
+                    if (gray < 128) {
+                        minX = Math.min(minX, x);
+                        maxX = Math.max(maxX, x);
+                        minY = Math.min(minY, y);
+                        maxY = Math.max(maxY, y);
+                    }
+                }
+            }
+
+            // Calculate quiet zone (average of all sides)
+            const quietZone = Math.round((minX + minY + (img.width - 1 - maxX) + (img.height - 1 - maxY)) / 4);
+
+            // Content dimensions
+            const contentWidth = maxX - minX + 1;
+            const contentHeight = maxY - minY + 1;
+
+            console.log('Detection Debug:', {
+                imageSize: `${img.width}x${img.height}`,
+                contentBox: `${minX},${minY} to ${maxX},${maxY}`,
+                contentSize: `${contentWidth}x${contentHeight}`,
+                quietZone: quietZone
+            });
+
+            // Try multiple detection methods and use the most reliable
+
+            // Method 1: Count transitions in the top row (finder pattern has specific pattern)
+            const topY = minY;
+            let transitions = 0;
+            let lastDark = false;
+            for (let x = minX; x <= maxX; x++) {
+                const idx = (topY * img.width + x) * 4;
+                const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+                const isDark = gray < 128;
+                if (x > minX && isDark !== lastDark) transitions++;
+                lastDark = isDark;
+            }
+
+            // Method 2: Analyze run-lengths
+            const midY = Math.floor((minY + maxY) / 2);
+            const runs = [];
+            let currentIsDark = false;
+            let runLength = 0;
+
+            for (let x = minX; x <= maxX; x++) {
+                const idx = (midY * img.width + x) * 4;
+                const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+                const isDark = gray < 128;
+
+                if (x === minX) {
+                    currentIsDark = isDark;
+                    runLength = 1;
+                } else if (isDark === currentIsDark) {
+                    runLength++;
+                } else {
+                    runs.push(runLength);
+                    currentIsDark = isDark;
+                    runLength = 1;
+                }
+            }
+            runs.push(runLength);
+
+            console.log('Runs:', runs);
+
+            // Method 3: Use finder pattern to calibrate (most accurate)
+            // The top-left finder has a 1:1:3:1:1 ratio when scanned through its middle
+            // First get a rough estimate of module size from the run analysis
+            const sortedRuns = [...runs].sort((a, b) => a - b);
+            const sampleSize = Math.max(2, Math.floor(sortedRuns.length * 0.3));
+            const smallestRuns = sortedRuns.slice(0, sampleSize);
+            const roughModuleSize = Math.round(smallestRuns.reduce((a, b) => a + b, 0) / smallestRuns.length);
+
+            console.log('Rough module size estimate:', roughModuleSize);
+
+            // Scan through the approximate middle of the top-left finder pattern
+            // The finder is 7×7, so scan through row 3.5 (middle)
+            const finderMiddleY = Math.round(minY + roughModuleSize * 3.5);
+            const finderRowRuns = [];
+            let finderRowDark = false;
+            let finderRowLength = 0;
+
+            for (let x = minX; x <= maxX; x++) {
+                const idx = (finderMiddleY * img.width + x) * 4;
+                const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+                const isDark = gray < 128;
+
+                if (x === minX) {
+                    finderRowDark = isDark;
+                    finderRowLength = 1;
+                } else if (isDark === finderRowDark) {
+                    finderRowLength++;
+                } else {
+                    finderRowRuns.push(finderRowLength);
+                    finderRowDark = isDark;
+                    finderRowLength = 1;
+                }
+            }
+            finderRowRuns.push(finderRowLength);
+
+            console.log('Finder middle row runs:', finderRowRuns);
+
+            // Look for the 1:1:3:1:1 pattern in the first 5 runs
+            // This should be: dark(1) - light(1) - dark(3) - light(1) - dark(1)
+            let modulePixelSize = null;
+
+            if (finderRowRuns.length >= 5 && finderRowRuns[0] > 0) {
+                // First 5 runs should follow approximately 1:1:3:1:1 ratio
+                const ratio1 = finderRowRuns[0];
+                const ratio2 = finderRowRuns[1];
+                const ratio3 = finderRowRuns[2];
+                const ratio4 = finderRowRuns[3];
+                const ratio5 = finderRowRuns[4];
+
+                // Verify it looks like a finder pattern (middle should be ~3x the outer runs)
+                const outerAvg = (ratio1 + ratio5) / 2;
+                const middleToOuterRatio = ratio3 / outerAvg;
+
+                console.log('Finder pattern ratios:', {
+                    runs: [ratio1, ratio2, ratio3, ratio4, ratio5],
+                    outerAvg,
+                    middleToOuterRatio
+                });
+
+                // If the ratio is close to 3, use this for module size
+                if (middleToOuterRatio > 2.5 && middleToOuterRatio < 3.5) {
+                    modulePixelSize = Math.round(outerAvg);
+                    console.log('Finder pattern calibration: module size =', modulePixelSize);
+                } else {
+                    console.log('Finder pattern ratio not close to 3:1, falling back');
+                }
+            }
+
+            // Fallback to run analysis if finder pattern detection fails
+            if (!modulePixelSize || modulePixelSize < 2) {
+                modulePixelSize = roughModuleSize;
+                console.log('Using rough module size:', modulePixelSize);
+            }
+
+            console.log('Final calculation:', {
+                contentWidth,
+                contentHeight,
+                modulePixelSize,
+                calculation: `${contentWidth} / ${modulePixelSize}`
+            });
+
+            // Calculate module count
+            const moduleCount = Math.round(contentWidth / modulePixelSize);
+
+            console.log('Raw module count:', moduleCount);
+
+            // Snap to standard QR code sizes (21, 25, 29, 33, 37, 41, 45, 49, 53, 57)
+            const standardSizes = [21, 25, 29, 33, 37, 41, 45, 49, 53, 57];
+            const snappedSize = standardSizes.reduce((prev, curr) =>
+                Math.abs(curr - moduleCount) < Math.abs(prev - moduleCount) ? curr : prev
+            );
+
+            console.log('Snapped to standard size:', snappedSize);
+
+            return {
+                moduleCount: snappedSize,
+                quietZonePixels: quietZone
+            };
+        }
+
+        function isFinderPattern(x, y, contentModules) {
+            // x, y are content module coordinates (0 to contentModules-1)
+            // Finder pattern is 7x7, but include 1 module separator = 8x8 total
+            const finderSize = 8;
+
+            // Top-left finder (0-7, 0-7) - includes 7x7 finder + 1 module separator
+            if (x < finderSize && y < finderSize) return true;
+            // Top-right finder
+            if (x >= contentModules - finderSize && y < finderSize) return true;
+            // Bottom-left finder
+            if (x < finderSize && y >= contentModules - finderSize) return true;
+
+            return false;
+        }
+
+        function hexToRgba(hex, alpha) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        function drawCanvas() {
+            try {
+                const canvasSize = 600;
+                ctx.clearRect(0, 0, canvasSize, canvasSize);
+
+                // Apply background fill
+                if (state.backgroundFill === 'light') {
+                    ctx.fillStyle = state.lightColor;
+                    ctx.fillRect(0, 0, canvasSize, canvasSize);
+                } else if (state.backgroundFill === 'dark') {
+                    ctx.fillStyle = state.darkColor;
+                    ctx.fillRect(0, 0, canvasSize, canvasSize);
+                }
+                // If transparent, clearRect above already handles it
+
+                if (state.logoImage) {
+                    const img = new Image();
+                    img.onload = () => {
+                        try {
+                            // Calculate logo size and position
+                            const scale = state.logoScale / 100;
+                            const logoWidth = canvasSize * scale;
+                            const logoHeight = canvasSize * scale;
+                            const logoX = (canvasSize * state.logoX / 100) - (logoWidth / 2);
+                            const logoY = (canvasSize * state.logoY / 100) - (logoHeight / 2);
+
+                            // Draw logo
+                            ctx.drawImage(img, logoX, logoY, logoWidth, logoHeight);
+
+                            // Pass logo info to overlay so it can sample original pixels
+                            drawQROverlay(canvasSize, {
+                                image: img,
+                                x: logoX,
+                                y: logoY,
+                                width: logoWidth,
+                                height: logoHeight
+                            });
+                        } catch (e) {
+                            console.error('Error drawing logo:', e);
+                        }
+                    };
+                    img.onerror = (e) => console.error('Error loading logo image:', e);
+                    img.src = state.logoImage;
+                } else {
+                    // Only show checkerboard if background is transparent
+                    if (state.backgroundFill === 'transparent') {
+                        const checkSize = 20;
+                        for (let y = 0; y < canvasSize; y += checkSize) {
+                            for (let x = 0; x < canvasSize; x += checkSize) {
+                                ctx.fillStyle = ((x / checkSize + y / checkSize) % 2 === 0) ? '#e0e0e0' : '#ffffff';
+                                ctx.fillRect(x, y, checkSize, checkSize);
+                            }
+                        }
+                    }
+                    drawQROverlay(canvasSize);
+                }
+            } catch (e) {
+                console.error('Error in drawCanvas:', e);
+            }
+        }
+
+        function drawQROverlay(canvasSize, logoInfo = null) {
+            const qrImage = state.useUploadedQR ? state.uploadedQR : state.generatedQR;
+            if (!qrImage) return;
+
+            const img = new Image();
+            img.onload = () => {
+                // Set overall overlay opacity
+                ctx.globalAlpha = state.overlayAlpha;
+
+                // Get the QR code dimensions (works for both uploaded and generated)
+                const contentModules = state.qrSize;
+                const quietZonePixels = state.quietZonePixels;
+                const canvasQuietZone = state.canvasQuietZone;
+
+                // Total modules including canvas quiet zone
+                const totalModules = contentModules + 2 * canvasQuietZone;
+
+                // Calculate content area in the source image (excluding quiet zone)
+                const contentWidth = img.width - 2 * quietZonePixels;
+                const contentHeight = img.height - 2 * quietZonePixels;
+
+                // Create temp canvas to read QR code data
+                const qrTempCanvas = document.createElement('canvas');
+                const qrTempCtx = qrTempCanvas.getContext('2d');
+                qrTempCanvas.width = img.width;
+                qrTempCanvas.height = img.height;
+                qrTempCtx.drawImage(img, 0, 0);
+                const qrImageData = qrTempCtx.getImageData(0, 0, img.width, img.height);
+
+                // Create temp canvas to read original logo data (not scaled canvas version)
+                let logoImageData = null;
+                if (logoInfo) {
+                    const logoTempCanvas = document.createElement('canvas');
+                    const logoTempCtx = logoTempCanvas.getContext('2d');
+                    logoTempCanvas.width = logoInfo.image.width;
+                    logoTempCanvas.height = logoInfo.image.height;
+                    logoTempCtx.drawImage(logoInfo.image, 0, 0);
+                    logoImageData = logoTempCtx.getImageData(0, 0, logoInfo.image.width, logoInfo.image.height);
+                }
+
+                // Module size on output canvas (includes quiet zone)
+                const modulePixelSize = canvasSize / totalModules;
+
+                // Draw all modules (including quiet zone)
+                for (let y = 0; y < totalModules; y++) {
+                    for (let x = 0; x < totalModules; x++) {
+                        // Check if we're in the canvas quiet zone
+                        const inQuietZone = x < canvasQuietZone || x >= contentModules + canvasQuietZone ||
+                                          y < canvasQuietZone || y >= contentModules + canvasQuietZone;
+
+                        // Convert to content coordinates (needed for color overrides later)
+                        const contentX = x - canvasQuietZone;
+                        const contentY = y - canvasQuietZone;
+
+                        let isDark = false;
+                        let isFinder = false;
+
+                        if (!inQuietZone) {
+
+                            // Sample QR code from content area only (skip quiet zone in source image)
+                            const qrContentPixelX = (contentX * contentWidth) / contentModules;
+                            const qrContentPixelY = (contentY * contentHeight) / contentModules;
+                            const qrSampleX = Math.floor(quietZonePixels + qrContentPixelX + contentWidth / contentModules / 2);
+                            const qrSampleY = Math.floor(quietZonePixels + qrContentPixelY + contentHeight / contentModules / 2);
+                            const qrClampedX = Math.min(qrSampleX, img.width - 1);
+                            const qrClampedY = Math.min(qrSampleY, img.height - 1);
+                            const qrPixelIndex = (qrClampedY * img.width + qrClampedX) * 4;
+                            isDark = qrImageData.data[qrPixelIndex] < 128;
+
+                            // Determine if this is a finder pattern (in content coordinates)
+                            isFinder = isFinderPattern(contentX, contentY, contentModules);
+                        }
+
+                        const currentModuleSize = isFinder ? 1 : state.moduleSize / 100;
+
+                        // Use pixel-aligned boundaries to avoid gaps
+                        const moduleX1 = Math.round(x * modulePixelSize);
+                        const moduleY1 = Math.round(y * modulePixelSize);
+                        const moduleX2 = Math.round((x + 1) * modulePixelSize);
+                        const moduleY2 = Math.round((y + 1) * modulePixelSize);
+                        const actualModuleWidth = moduleX2 - moduleX1;
+                        const actualModuleHeight = moduleY2 - moduleY1;
+
+                        // Quiet zone modules are always light colored (full size)
+                        if (inQuietZone) {
+                            ctx.fillStyle = hexToRgba(state.lightColor, state.lightAlpha);
+                            ctx.fillRect(moduleX1, moduleY1, actualModuleWidth, actualModuleHeight);
+                            continue;
+                        }
+
+                        // Determine color for this module
+                        let moduleColor;
+
+                        // Check for manual color override first
+                        const overrideKey = `${contentX},${contentY}`;
+                        const colorOverride = state.moduleColors[overrideKey];
+
+                        if (colorOverride) {
+                            // Use manually assigned color
+                            const palette = colorOverride.type === 'dark' ? state.darkPalette : state.lightPalette;
+                            moduleColor = palette[colorOverride.index];
+                        } else if (isFinder) {
+                            // Finders use single color for reliability
+                            moduleColor = isDark ? state.darkColor : state.lightColor;
+                        } else if (logoImageData && logoInfo) {
+                            // Sample from ORIGINAL logo image at module center
+                            const moduleCenterX = moduleX1 + actualModuleWidth / 2;
+                            const moduleCenterY = moduleY1 + actualModuleHeight / 2;
+
+                            // Map canvas position to original logo position
+                            const logoLocalX = moduleCenterX - logoInfo.x;
+                            const logoLocalY = moduleCenterY - logoInfo.y;
+
+                            // Convert from scaled logo coordinates to original image coordinates
+                            const logoOriginalX = Math.floor((logoLocalX / logoInfo.width) * logoInfo.image.width);
+                            const logoOriginalY = Math.floor((logoLocalY / logoInfo.height) * logoInfo.image.height);
+
+                            // Clamp to logo bounds
+                            const clampedX = Math.max(0, Math.min(logoInfo.image.width - 1, logoOriginalX));
+                            const clampedY = Math.max(0, Math.min(logoInfo.image.height - 1, logoOriginalY));
+
+                            const logoPixelIndex = (clampedY * logoInfo.image.width + clampedX) * 4;
+
+                            const sampledR = logoImageData.data[logoPixelIndex];
+                            const sampledG = logoImageData.data[logoPixelIndex + 1];
+                            const sampledB = logoImageData.data[logoPixelIndex + 2];
+
+                            // Find best matching color from appropriate palette
+                            const palette = isDark ? state.darkPalette : state.lightPalette;
+                            moduleColor = findBestMatch([sampledR, sampledG, sampledB], palette);
+                        } else {
+                            // No logo - use default colors
+                            moduleColor = isDark ? state.darkColor : state.lightColor;
+                        }
+
+                        const alpha = isDark ? state.darkAlpha : state.lightAlpha;
+                        ctx.fillStyle = hexToRgba(moduleColor, alpha);
+
+                        if (isFinder && state.finderRadius > 0) {
+                            const radius = (Math.min(actualModuleWidth, actualModuleHeight) * state.finderRadius) / 100;
+                            ctx.beginPath();
+                            ctx.roundRect(moduleX1, moduleY1, actualModuleWidth, actualModuleHeight, radius);
+                            ctx.fill();
+                        } else if (isFinder) {
+                            // Full-sized module for finders
+                            ctx.fillRect(moduleX1, moduleY1, actualModuleWidth, actualModuleHeight);
+                        } else {
+                            // Shrunk module centered within the cell
+                            const shrunkWidth = actualModuleWidth * currentModuleSize;
+                            const shrunkHeight = actualModuleHeight * currentModuleSize;
+                            const offsetX = (actualModuleWidth - shrunkWidth) / 2;
+                            const offsetY = (actualModuleHeight - shrunkHeight) / 2;
+                            ctx.fillRect(moduleX1 + offsetX, moduleY1 + offsetY, shrunkWidth, shrunkHeight);
+                        }
+                    }
+                }
+
+                // Reset global alpha
+                ctx.globalAlpha = 1.0;
+            };
+            img.src = qrImage;
+        }
+
+        // Event Listeners
+        generateBtn.addEventListener('click', generateQRCode);
+
+        qrUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        if (img.width === img.height) {
+                            state.uploadedQR = event.target.result;
+                            state.useUploadedQR = true;
+                            state.moduleColors = {};  // Clear manual color overrides
+
+                            // Auto-detect QR geometry
+                            const detected = detectQRGeometry(img);
+                            state.qrSize = detected.moduleCount;
+                            state.quietZonePixels = detected.quietZonePixels;
+
+                            // Update UI
+                            qrSizeSelect.value = detected.moduleCount;
+                            quietZoneInput.value = detected.quietZonePixels;
+                            qrSizeSelect.classList.remove('hidden');
+                            quietZoneContainer.classList.remove('hidden');
+
+                            console.log(`Detected: ${detected.moduleCount}×${detected.moduleCount} QR code with ${detected.quietZonePixels}px quiet zone`);
+
+                            // Auto-adjust logo scale to fit content area
+                            if (state.logoImage) {
+                                const totalModules = state.qrSize + 2 * state.canvasQuietZone;
+                                const contentScale = Math.round((state.qrSize / totalModules) * 100);
+                                state.logoScale = contentScale;
+                                logoScale.value = contentScale;
+                                document.getElementById('logoScaleLabel').textContent = contentScale;
+                            }
+
+                            drawCanvas();
+                        } else {
+                            alert('QR code image must be square');
+                        }
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        qrSizeSelect.addEventListener('change', (e) => {
+            state.qrSize = parseInt(e.target.value);
+
+            // Auto-adjust logo scale to fit content area when QR size changes
+            if (state.logoImage) {
+                const totalModules = state.qrSize + 2 * state.canvasQuietZone;
+                const contentScale = Math.round((state.qrSize / totalModules) * 100);
+                state.logoScale = contentScale;
+                logoScale.value = contentScale;
+                document.getElementById('logoScaleLabel').textContent = contentScale;
+            }
+
+            drawCanvas();
+        });
+
+        quietZoneInput.addEventListener('input', (e) => {
+            state.quietZonePixels = parseInt(e.target.value);
+            drawCanvas();
+        });
+
+        canvasQuietZoneInput.addEventListener('input', (e) => {
+            state.canvasQuietZone = parseInt(e.target.value);
+            document.getElementById('canvasQuietZoneLabel').textContent = state.canvasQuietZone;
+
+            // Auto-adjust logo scale to fit content area when quiet zone changes
+            if (state.logoImage) {
+                const totalModules = state.qrSize + 2 * state.canvasQuietZone;
+                const contentScale = Math.round((state.qrSize / totalModules) * 100);
+                state.logoScale = contentScale;
+                logoScale.value = contentScale;
+                document.getElementById('logoScaleLabel').textContent = contentScale;
+            }
+
+            drawCanvas();
+        });
+
+        logoUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    state.logoImage = event.target.result;
+
+                    // Extract dominant colors from logo
+                    const img = new Image();
+                    img.onload = () => {
+                        const colors = extractDominantColors(img);
+                        state.darkColor = colors.dark;
+                        state.lightColor = colors.light;
+                        state.darkPalette = colors.darkPalette;
+                        state.lightPalette = colors.lightPalette;
+                        darkColor.value = colors.dark;
+                        lightColor.value = colors.light;
+                        console.log(`Extracted colors - Dark: ${colors.dark}, Light: ${colors.light}`);
+                        console.log(`Dark palette:`, colors.darkPalette);
+                        console.log(`Light palette:`, colors.lightPalette);
+
+                        // Update palette UI
+                        updatePaletteUI();
+
+                        // Calculate logo scale to fit content area only (exclude canvas quiet zone)
+                        const totalModules = state.qrSize + 2 * state.canvasQuietZone;
+                        const contentScale = Math.round((state.qrSize / totalModules) * 100);
+                        state.logoScale = contentScale;
+                        logoScale.value = contentScale;
+                        document.getElementById('logoScaleLabel').textContent = contentScale;
+                        console.log(`Logo scaled to ${contentScale}% to fit content area`);
+
+                        drawCanvas();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        moduleSize.addEventListener('input', (e) => {
+            state.moduleSize = parseInt(e.target.value);
+            document.getElementById('moduleSizeLabel').textContent = state.moduleSize;
+            drawCanvas();
+        });
+
+        overlayAlpha.addEventListener('input', (e) => {
+            state.overlayAlpha = parseInt(e.target.value) / 100;
+            document.getElementById('overlayAlphaLabel').textContent = e.target.value;
+            drawCanvas();
+        });
+
+        backgroundFill.addEventListener('change', (e) => {
+            state.backgroundFill = e.target.value;
+            drawCanvas();
+        });
+
+        finderRadius.addEventListener('input', (e) => {
+            state.finderRadius = parseInt(e.target.value);
+            document.getElementById('finderRadiusLabel').textContent = state.finderRadius;
+            drawCanvas();
+        });
+
+        darkColor.addEventListener('input', (e) => {
+            state.darkColor = e.target.value;
+            drawCanvas();
+        });
+
+        darkAlpha.addEventListener('input', (e) => {
+            state.darkAlpha = parseFloat(e.target.value);
+            document.getElementById('darkAlphaLabel').textContent = Math.round(state.darkAlpha * 100) + '%';
+            drawCanvas();
+        });
+
+        lightColor.addEventListener('input', (e) => {
+            state.lightColor = e.target.value;
+            drawCanvas();
+        });
+
+        lightAlpha.addEventListener('input', (e) => {
+            state.lightAlpha = parseFloat(e.target.value);
+            document.getElementById('lightAlphaLabel').textContent = Math.round(state.lightAlpha * 100) + '%';
+            drawCanvas();
+        });
+
+        logoScale.addEventListener('input', (e) => {
+            state.logoScale = parseInt(e.target.value);
+            document.getElementById('logoScaleLabel').textContent = state.logoScale;
+            drawCanvas();
+        });
+
+        // Lock button toggle
+        lockBtn.addEventListener('click', () => {
+            state.logoLocked = !state.logoLocked;
+            if (state.logoLocked) {
+                lockIcon.textContent = '🔒';
+                lockText.textContent = 'Locked';
+                canvas.style.cursor = 'default';
+            } else {
+                lockIcon.textContent = '🔓';
+                lockText.textContent = 'Unlocked - Drag on Canvas';
+                canvas.style.cursor = 'move';
+            }
+        });
+
+        // Palette toggle
+        paletteToggle.addEventListener('click', () => {
+            const isHidden = paletteEditor.style.display === 'none';
+            paletteEditor.style.display = isHidden ? 'block' : 'none';
+            paletteArrow.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+        });
+
+        // Function to update palette UI from state
+        function updatePaletteUI() {
+            for (let i = 0; i < 4; i++) {
+                document.getElementById(`darkPalette${i}`).value = state.darkPalette[i];
+                document.getElementById(`lightPalette${i}`).value = state.lightPalette[i];
+            }
+            checkContrast();
+        }
+
+        // Palette color change and selection handlers
+        document.querySelectorAll('.palette-color').forEach(input => {
+            // Handle color value changes
+            input.addEventListener('input', (e) => {
+                const type = e.target.dataset.type;
+                const index = parseInt(e.target.dataset.index);
+                const newColor = e.target.value;
+
+                if (type === 'dark') {
+                    state.darkPalette[index] = newColor;
+                    // Update main dark color if this is the first one
+                    if (index === 0) {
+                        state.darkColor = newColor;
+                        darkColor.value = newColor;
+                    }
+                } else {
+                    state.lightPalette[index] = newColor;
+                    // Update main light color if this is the first one
+                    if (index === 0) {
+                        state.lightColor = newColor;
+                        lightColor.value = newColor;
+                    }
+                }
+
+                checkContrast();
+                drawCanvas();
+            });
+
+            // Handle palette color selection for module editing
+            input.addEventListener('click', (e) => {
+                const type = e.target.dataset.type;
+                const index = parseInt(e.target.dataset.index);
+
+                // Toggle selection
+                if (selectedPaletteColor &&
+                    selectedPaletteColor.type === type &&
+                    selectedPaletteColor.index === index) {
+                    // Deselect
+                    selectedPaletteColor = null;
+                    editingMode = false;
+                    document.querySelectorAll('.palette-color').forEach(el => el.classList.remove('selected'));
+                    document.getElementById('paletteInstructions').textContent =
+                        'Click a color below to select it, then click modules on canvas to apply';
+                } else {
+                    // Select this color
+                    selectedPaletteColor = { type, index };
+                    editingMode = true;
+                    document.querySelectorAll('.palette-color').forEach(el => el.classList.remove('selected'));
+                    e.target.classList.add('selected');
+                    document.getElementById('paletteInstructions').textContent =
+                        `✓ ${type.charAt(0).toUpperCase() + type.slice(1)} color ${index + 1} selected - Click modules to apply`;
+                    canvas.style.cursor = 'crosshair';
+                }
+            });
+        });
+
+        // Eyedropper button handlers
+        darkEyedropper.addEventListener('click', () => {
+            if (!state.logoImage) {
+                alert('Please upload a logo first');
+                return;
+            }
+            eyedropperMode = 'dark';
+            canvas.style.cursor = 'crosshair';
+            darkEyedropper.style.backgroundColor = '#dbeafe';
+            lightEyedropper.style.backgroundColor = '';
+        });
+
+        lightEyedropper.addEventListener('click', () => {
+            if (!state.logoImage) {
+                alert('Please upload a logo first');
+                return;
+            }
+            eyedropperMode = 'light';
+            canvas.style.cursor = 'crosshair';
+            lightEyedropper.style.backgroundColor = '#dbeafe';
+            darkEyedropper.style.backgroundColor = '';
+        });
+
+        // Canvas drag handlers
+        canvas.addEventListener('mousedown', (e) => {
+            // If in editing mode, apply selected color to module
+            if (editingMode && selectedPaletteColor) {
+                const rect = canvas.getBoundingClientRect();
+                const canvasX = e.clientX - rect.left;
+                const canvasY = e.clientY - rect.top;
+                const canvasSize = 600;
+
+                // Calculate which module was clicked
+                const contentModules = state.qrSize;
+                const canvasQuietZone = state.canvasQuietZone;
+                const totalModules = contentModules + 2 * canvasQuietZone;
+                const modulePixelSize = canvasSize / totalModules;
+
+                const moduleX = Math.floor(canvasX / modulePixelSize);
+                const moduleY = Math.floor(canvasY / modulePixelSize);
+
+                // Check if click is within content area (not quiet zone)
+                const inQuietZone = moduleX < canvasQuietZone || moduleX >= contentModules + canvasQuietZone ||
+                                    moduleY < canvasQuietZone || moduleY >= contentModules + canvasQuietZone;
+
+                if (!inQuietZone) {
+                    // Convert to content coordinates
+                    const contentX = moduleX - canvasQuietZone;
+                    const contentY = moduleY - canvasQuietZone;
+
+                    // Check if it's a finder pattern (can't edit finders)
+                    const isFinder = isFinderPattern(contentX, contentY, contentModules);
+
+                    if (!isFinder) {
+                        // Store the color override
+                        const key = `${contentX},${contentY}`;
+                        state.moduleColors[key] = {
+                            type: selectedPaletteColor.type,
+                            index: selectedPaletteColor.index
+                        };
+
+                        console.log(`Module (${contentX},${contentY}) set to ${selectedPaletteColor.type}[${selectedPaletteColor.index}]`);
+                        drawCanvas();
+                    }
+                }
+                return;
+            }
+
+            // If in eyedropper mode, pick color
+            if (eyedropperMode) {
+                const rect = canvas.getBoundingClientRect();
+                const x = Math.floor(e.clientX - rect.left);
+                const y = Math.floor(e.clientY - rect.top);
+
+                // Get pixel color from canvas
+                const imageData = ctx.getImageData(x, y, 1, 1);
+                const [r, g, b] = imageData.data;
+                const hexColor = '#' + [r, g, b].map(x => {
+                    const hex = x.toString(16);
+                    return hex.length === 1 ? '0' + hex : hex;
+                }).join('');
+
+                // Set the appropriate color
+                if (eyedropperMode === 'dark') {
+                    state.darkColor = hexColor;
+                    darkColor.value = hexColor;
+                    darkEyedropper.style.backgroundColor = '';
+                } else {
+                    state.lightColor = hexColor;
+                    lightColor.value = hexColor;
+                    lightEyedropper.style.backgroundColor = '';
+                }
+
+                // Exit eyedropper mode
+                eyedropperMode = null;
+                canvas.style.cursor = state.logoLocked ? 'default' : 'move';
+                drawCanvas();
+                return;
+            }
+
+            // Normal drag behavior
+            if (state.logoLocked || !state.logoImage) return;
+
+            isDragging = true;
+            const rect = canvas.getBoundingClientRect();
+            dragStartX = e.clientX - rect.left;
+            dragStartY = e.clientY - rect.top;
+            canvas.style.cursor = 'grabbing';
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // Calculate new position as percentage
+            state.logoX = Math.max(0, Math.min(100, (mouseX / canvas.width) * 100));
+            state.logoY = Math.max(0, Math.min(100, (mouseY / canvas.height) * 100));
+
+            drawCanvas();
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                canvas.style.cursor = state.logoLocked ? 'default' : 'move';
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            if (isDragging) {
+                isDragging = false;
+                canvas.style.cursor = state.logoLocked ? 'default' : 'move';
+            }
+        });
+
+        qrText.addEventListener('input', (e) => {
+            state.qrText = e.target.value;
+        });
+
+        exportBtn.addEventListener('click', () => {
+            try {
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.download = 'custom-qr-code.png';
+                        link.href = url;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                    }
+                }, 'image/png');
+            } catch (error) {
+                console.error('Export error:', error);
+                const link = document.createElement('a');
+                link.download = 'custom-qr-code.png';
+                link.href = canvas.toDataURL('image/png');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        });
+
+        // Initial setup
+        updatePaletteUI();
+        drawCanvas();
+    </script>
+</body>
+</html>
