@@ -1,0 +1,757 @@
+/**
+ * Event Handlers
+ * All DOM event listeners and user interactions
+ */
+
+import { state } from './state.js';
+import { extractDominantColors } from './color-extractor.js';
+import { detectQRGeometry, isFinderPattern } from './qr-detector.js';
+import { generateQRCode } from './qr-generator.js';
+import { drawCanvas, setCachedLogoImg, getCachedLogoImg } from './renderer.js';
+import { updateModeButtons, updatePaletteUI, checkContrast } from './ui-controller.js';
+
+// Get DOM elements
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const generateBtn = document.getElementById('generateBtn');
+const qrText = document.getElementById('qrText');
+const qrUpload = document.getElementById('qrUpload');
+const logoUpload = document.getElementById('logoUpload');
+const logoSelect = document.getElementById('logoSelect');
+const exportBtn = document.getElementById('exportBtn');
+const qrSizeSelect = document.getElementById('qrSize');
+const quietZoneInput = document.getElementById('quietZone');
+const quietZoneContainer = document.getElementById('quietZoneContainer');
+const canvasQuietZoneInput = document.getElementById('canvasQuietZone');
+const logoScale = document.getElementById('logoScale');
+const moduleSize = document.getElementById('moduleSize');
+const moduleShape = document.getElementById('moduleShape');
+const finderPattern = document.getElementById('finderPattern');
+const overlayAlpha = document.getElementById('overlayAlpha');
+const colorMode = document.getElementById('colorMode');
+const darkMaxLuminosity = document.getElementById('darkMaxLuminosity');
+const lightMinLuminosity = document.getElementById('lightMinLuminosity');
+const backgroundFill = document.getElementById('backgroundFill');
+const eccLevel = document.getElementById('eccLevel');
+const positionModeBtn = document.getElementById('positionModeBtn');
+const colorModeBtn = document.getElementById('colorModeBtn');
+const deleteModeBtn = document.getElementById('deleteModeBtn');
+const paletteToggle = document.getElementById('paletteToggle');
+const paletteEditor = document.getElementById('paletteEditor');
+const setupToggle = document.getElementById('setupToggle');
+const setupPanel = document.getElementById('setupPanel');
+const gradientControls = document.getElementById('gradientControls');
+const paletteInstructions = document.getElementById('paletteInstructions');
+const contrastWarning = document.getElementById('contrastWarning');
+// Canvas interaction state
+let isDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let logoStartX = 0;
+let logoStartY = 0;
+let selectedPaletteColor = null;
+let editingMode = false;
+let selectedColorType = null;
+
+// Touch interaction state
+let lastTouchType = null; // 'mouse' or 'touch' - prevents double-firing
+let initialPinchDistance = 0;
+let initialLogoScale = 100;
+
+// Event Listeners
+generateBtn.addEventListener('click', () => generateQRCode(() => drawCanvas(ctx), updateModeButtons));
+
+qrUpload.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                if (img.width === img.height) {
+                    state.uploadedQR = event.target.result;
+                    state.useUploadedQR = true;
+                    state.moduleColors = {};  // Clear manual color overrides
+
+                    // Auto-detect QR geometry
+                    const detected = detectQRGeometry(img);
+                    state.qrSize = detected.moduleCount;
+                    state.quietZonePixels = detected.quietZonePixels;
+
+                    // Update UI
+                    qrSizeSelect.value = detected.moduleCount;
+                    quietZoneInput.value = detected.quietZonePixels;
+                    qrSizeSelect.classList.remove('hidden');
+                    quietZoneContainer.classList.remove('hidden');
+
+                    console.log(`Detected: ${detected.moduleCount}×${detected.moduleCount} QR code with ${detected.quietZonePixels}px quiet zone`);
+
+                    // Auto-adjust logo scale to fit content area
+                    if (state.logoImage) {
+                        const totalModules = state.qrSize + 2 * state.canvasQuietZone;
+                        const contentScale = Math.round((state.qrSize / totalModules) * 100);
+                        state.logoScale = contentScale;
+                        logoScale.value = contentScale;
+                        document.getElementById('logoScaleLabel').textContent = contentScale;
+                    }
+
+                    drawCanvas(ctx);
+                    // Switch to delete mode when only QR is present
+                    state.interactionMode = 'delete';
+                    updateModeButtons();
+                } else {
+                    alert('QR code image must be square');
+                }
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+qrSizeSelect.addEventListener('change', (e) => {
+    state.qrSize = parseInt(e.target.value);
+
+    // Auto-adjust logo scale to fit content area when QR size changes
+    if (state.logoImage) {
+        const totalModules = state.qrSize + 2 * state.canvasQuietZone;
+        const contentScale = Math.round((state.qrSize / totalModules) * 100);
+        state.logoScale = contentScale;
+        logoScale.value = contentScale;
+        document.getElementById('logoScaleLabel').textContent = contentScale;
+    }
+
+    drawCanvas(ctx);
+});
+
+quietZoneInput.addEventListener('input', (e) => {
+    state.quietZonePixels = parseInt(e.target.value);
+    drawCanvas(ctx);
+});
+
+canvasQuietZoneInput.addEventListener('input', (e) => {
+    state.canvasQuietZone = parseInt(e.target.value);
+    document.getElementById('canvasQuietZoneLabel').textContent = state.canvasQuietZone;
+
+    // Auto-adjust logo scale to fit content area when quiet zone changes
+    if (state.logoImage) {
+        const totalModules = state.qrSize + 2 * state.canvasQuietZone;
+        const contentScale = Math.round((state.qrSize / totalModules) * 100);
+        state.logoScale = contentScale;
+        logoScale.value = contentScale;
+        document.getElementById('logoScaleLabel').textContent = contentScale;
+    }
+
+    drawCanvas(ctx);
+});
+
+logoUpload.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            state.logoImage = event.target.result;
+            setCachedLogoImg(null); // Clear cache when new logo is uploaded
+            state.cachedModuleColors = {}; // Clear color cache
+
+            // Extract dominant colors from logo
+            const img = new Image();
+            img.onload = () => {
+                const colors = extractDominantColors(img);
+                state.darkColor = colors.dark;
+                state.lightColor = colors.light;
+                state.darkPalette = colors.darkPalette;
+                state.lightPalette = colors.lightPalette;
+                console.log(`Extracted colors - Dark: ${colors.dark}, Light: ${colors.light}`);
+                console.log(`Dark palette:`, colors.darkPalette);
+                console.log(`Light palette:`, colors.lightPalette);
+
+                // Update palette UI
+                updatePaletteUI();
+
+                // Calculate logo scale to fit content area only (exclude canvas quiet zone)
+                const totalModules = state.qrSize + 2 * state.canvasQuietZone;
+                const contentScale = Math.round((state.qrSize / totalModules) * 100);
+                state.logoScale = contentScale;
+                logoScale.value = contentScale;
+                document.getElementById('logoScaleLabel').textContent = contentScale;
+                console.log(`Logo scaled to ${contentScale}% to fit content area`);
+
+                drawCanvas(ctx);
+                // Switch to position mode when logo loads
+                state.interactionMode = 'position';
+                updateModeButtons();
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+moduleSize.addEventListener('input', (e) => {
+    state.moduleSize = parseInt(e.target.value);
+    document.getElementById('moduleSizeLabel').textContent = state.moduleSize;
+    drawCanvas(ctx);
+});
+
+moduleShape.addEventListener('change', (e) => {
+    state.moduleShape = e.target.value;
+    drawCanvas(ctx);
+});
+
+finderPattern.addEventListener('change', (e) => {
+    state.finderPattern = e.target.value;
+    drawCanvas(ctx);
+});
+
+overlayAlpha.addEventListener('input', (e) => {
+    state.overlayAlpha = parseInt(e.target.value) / 100;
+    document.getElementById('overlayAlphaLabel').textContent = e.target.value;
+    drawCanvas(ctx);
+});
+
+backgroundFill.addEventListener('change', (e) => {
+    state.backgroundFill = e.target.value;
+    drawCanvas(ctx);
+});
+
+colorMode.addEventListener('change', (e) => {
+    state.colorMode = e.target.value;
+    state.cachedModuleColors = {}; // Clear color cache when mode changes
+    // Toggle visibility of gradient controls and palette instructions
+    if (state.colorMode === 'gradient') {
+        gradientControls.style.display = 'block';
+        paletteInstructions.style.display = 'none';
+        // Deselect any palette color and exit editing mode
+        selectedPaletteColor = null;
+        editingMode = false;
+        document.querySelectorAll('.palette-color').forEach(el => el.classList.remove('selected'));
+    } else {
+        gradientControls.style.display = 'none';
+        paletteInstructions.style.display = 'block';
+    }
+    updateModeButtons();
+    drawCanvas(ctx);
+});
+
+darkMaxLuminosity.addEventListener('input', (e) => {
+    state.darkMaxLuminosity = parseInt(e.target.value);
+    state.cachedModuleColors = {}; // Clear color cache
+    document.getElementById('darkLumLabel').textContent = e.target.value;
+    document.getElementById('darkLumLabel2').textContent = e.target.value;
+    drawCanvas(ctx);
+});
+
+lightMinLuminosity.addEventListener('input', (e) => {
+    state.lightMinLuminosity = parseInt(e.target.value);
+    state.cachedModuleColors = {}; // Clear color cache
+    document.getElementById('lightLumLabel').textContent = e.target.value;
+    document.getElementById('lightLumLabel2').textContent = e.target.value;
+    drawCanvas(ctx);
+});
+
+logoScale.addEventListener('input', (e) => {
+    state.logoScale = parseInt(e.target.value);
+    document.getElementById('logoScaleLabel').textContent = state.logoScale;
+    drawCanvas(ctx);
+});
+
+// Mode button management
+positionModeBtn.addEventListener('click', () => {
+    state.interactionMode = 'position';
+    // Deselect any palette color
+    selectedPaletteColor = null;
+    editingMode = false;
+    document.querySelectorAll('.palette-color').forEach(el => el.classList.remove('selected'));
+    updateModeButtons();
+});
+
+colorModeBtn.addEventListener('click', () => {
+    if (state.colorMode === 'gradient') return; // Disabled in gradient mode
+    state.interactionMode = 'color';
+    updateModeButtons();
+});
+
+deleteModeBtn.addEventListener('click', () => {
+    state.interactionMode = 'delete';
+    // Deselect any palette color
+    selectedPaletteColor = null;
+    editingMode = false;
+    document.querySelectorAll('.palette-color').forEach(el => el.classList.remove('selected'));
+    updateModeButtons();
+});
+
+// Setup panel toggle
+setupToggle.addEventListener('click', () => {
+    const isHidden = setupPanel.style.display === 'none';
+    setupPanel.style.display = isHidden ? 'block' : 'none';
+    setupArrow.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+});
+
+// Tab switching for QR Code section
+document.querySelectorAll('.tab-header').forEach(tabHeader => {
+    tabHeader.addEventListener('click', () => {
+        const targetTab = tabHeader.dataset.tab;
+
+        // Remove active class from all headers and panes
+        document.querySelectorAll('.tab-header').forEach(h => h.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+
+        // Add active class to clicked header and corresponding pane
+        tabHeader.classList.add('active');
+        document.getElementById(targetTab).classList.add('active');
+    });
+});
+
+// Logo dropdown selection
+logoSelect.addEventListener('change', (e) => {
+    const selectedValue = e.target.value;
+
+    if (selectedValue === '__upload__') {
+        // Trigger file upload
+        logoUpload.click();
+        // Reset dropdown to empty after triggering upload
+        setTimeout(() => {
+            logoSelect.value = '';
+        }, 100);
+    } else if (selectedValue && selectedValue !== '') {
+        // Load logo from library
+        const logoPath = `logos/${selectedValue}`;
+
+        // Create an image and load it
+        fetch(logoPath)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Logo not found: ${selectedValue}`);
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    state.logoImage = event.target.result;
+                    setCachedLogoImg(null); // Clear cache when new logo is loaded
+                    state.cachedModuleColors = {}; // Clear color cache
+
+                    // Extract dominant colors from logo
+                    const img = new Image();
+                    img.onload = () => {
+                        const colors = extractDominantColors(img);
+                        state.darkColor = colors.dark;
+                        state.lightColor = colors.light;
+                        state.darkPalette = colors.darkPalette;
+                        state.lightPalette = colors.lightPalette;
+                        console.log(`Loaded logo: ${selectedValue}`);
+                        console.log(`Extracted colors - Dark: ${colors.dark}, Light: ${colors.light}`);
+
+                        // Update palette UI
+                        updatePaletteUI();
+
+                        // Calculate logo scale to fit content area only (exclude canvas quiet zone)
+                        const totalModules = state.qrSize + 2 * state.canvasQuietZone;
+                        const contentScale = Math.round((state.qrSize / totalModules) * 100);
+                        state.logoScale = contentScale;
+                        logoScale.value = contentScale;
+                        document.getElementById('logoScaleLabel').textContent = contentScale;
+                        console.log(`Logo scaled to ${contentScale}% to fit content area`);
+
+                        drawCanvas(ctx);
+                        // Switch to position mode when logo loads
+                        state.interactionMode = 'position';
+                        updateModeButtons();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(blob);
+            })
+            .catch(error => {
+                console.error('Error loading logo:', error);
+                alert(`Failed to load logo: ${selectedValue}\n\nMake sure the file exists in the /logos folder.`);
+                // Reset dropdown
+                logoSelect.value = '';
+            });
+    }
+});
+
+// Palette toggle
+paletteToggle.addEventListener('click', () => {
+    const isHidden = paletteEditor.style.display === 'none';
+    paletteEditor.style.display = isHidden ? 'block' : 'none';
+    paletteArrow.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+});
+
+// Function to update palette UI from state
+
+// Palette color change and selection handlers
+document.querySelectorAll('.palette-color').forEach(input => {
+    // Handle color value changes
+    input.addEventListener('input', (e) => {
+        const type = e.target.dataset.type;
+        const index = parseInt(e.target.dataset.index);
+        const newColor = e.target.value;
+
+        if (type === 'dark') {
+            state.darkPalette[index] = newColor;
+            // Update main dark color if this is the first one
+            if (index === 0) {
+                state.darkColor = newColor;
+            }
+        } else {
+            state.lightPalette[index] = newColor;
+            // Update main light color if this is the first one
+            if (index === 0) {
+                state.lightColor = newColor;
+            }
+        }
+
+        state.cachedModuleColors = {}; // Clear color cache
+        checkContrast();
+        drawCanvas(ctx);
+    });
+
+    // Handle palette color selection for module editing
+    input.addEventListener('click', (e) => {
+        // Disable module editing in gradient mode
+        if (state.colorMode === 'gradient') {
+            return;
+        }
+
+        const type = e.target.dataset.type;
+        const index = parseInt(e.target.dataset.index);
+
+        // Toggle selection
+        if (selectedPaletteColor &&
+            selectedPaletteColor.type === type &&
+            selectedPaletteColor.index === index) {
+            // Deselect
+            selectedPaletteColor = null;
+            editingMode = false;
+            document.querySelectorAll('.palette-color').forEach(el => el.classList.remove('selected'));
+            document.getElementById('paletteInstructions').textContent =
+                'Click a color below to select it, then click modules on canvas to apply';
+        } else {
+            // Select this color
+            selectedPaletteColor = { type, index };
+            editingMode = true;
+            state.interactionMode = 'color';  // Switch to color mode
+            document.querySelectorAll('.palette-color').forEach(el => el.classList.remove('selected'));
+            e.target.classList.add('selected');
+            document.getElementById('paletteInstructions').textContent =
+                `Selected: ${type.charAt(0).toUpperCase() + type.slice(1)} color ${index + 1} - Click modules to apply`;
+        }
+        updateModeButtons();
+    });
+});
+
+// Canvas drag handlers
+canvas.addEventListener('mousedown', (e) => {
+    // Prevent double-firing on touch devices
+    if (lastTouchType === 'touch') {
+        lastTouchType = null;
+        return;
+    }
+    lastTouchType = 'mouse';
+
+    // Position mode: allow dragging logo
+    if (state.interactionMode === 'position' && state.logoImage) {
+        isDragging = true;
+        const rect = canvas.getBoundingClientRect();
+        dragStartX = e.clientX - rect.left;
+        dragStartY = e.clientY - rect.top;
+        // Store initial logo position
+        logoStartX = state.logoX;
+        logoStartY = state.logoY;
+        canvas.style.cursor = 'grabbing';
+        return;
+    }
+
+    // Color mode or Delete mode: handle module click
+    if (state.interactionMode === 'color' || state.interactionMode === 'delete') {
+        const rect = canvas.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+        handleModuleClick(canvasX, canvasY);
+        return;
+    }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    // Prevent double-firing on touch devices
+    if (lastTouchType === 'touch') return;
+    if (!isDragging) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // Calculate delta from initial click position
+    const deltaX = mouseX - dragStartX;
+    const deltaY = mouseY - dragStartY;
+
+    // Apply delta to initial logo position (as percentage)
+    const deltaXPercent = (deltaX / canvas.width) * 100;
+    const deltaYPercent = (deltaY / canvas.height) * 100;
+
+    state.logoX = Math.max(0, Math.min(100, logoStartX + deltaXPercent));
+    state.logoY = Math.max(0, Math.min(100, logoStartY + deltaYPercent));
+
+    // Skip overlay drawing while dragging for better performance
+    drawCanvas(ctx, true);
+});
+
+canvas.addEventListener('mouseup', () => {
+    // Prevent double-firing on touch devices
+    if (lastTouchType === 'touch') return;
+
+    if (isDragging) {
+        isDragging = false;
+        state.cachedModuleColors = {}; // Clear cache so colors recalculate with new position
+        updateModeButtons(); // Reset cursor based on current mode
+        // Redraw with full overlay after drag ends
+        drawCanvas(ctx);
+    }
+});
+
+canvas.addEventListener('mouseleave', () => {
+    // Prevent double-firing on touch devices
+    if (lastTouchType === 'touch') return;
+
+    if (isDragging) {
+        isDragging = false;
+        state.cachedModuleColors = {}; // Clear cache so colors recalculate with new position
+        updateModeButtons(); // Reset cursor based on current mode
+        // Redraw with full overlay after drag ends
+        drawCanvas(ctx);
+    }
+});
+
+// Touch event handlers
+// Helper function to get distance between two touches (for pinch-to-zoom)
+function getTouchDistance(touch1, touch2) {
+    const dx = touch1.clientX - touch2.clientX;
+    const dy = touch1.clientY - touch2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Helper function to handle module click/tap (shared by mouse and touch)
+function handleModuleClick(canvasX, canvasY) {
+    const canvasSize = 600;
+    const contentModules = state.qrSize;
+    const canvasQuietZone = state.canvasQuietZone;
+    const totalModules = contentModules + 2 * canvasQuietZone;
+    const modulePixelSize = canvasSize / totalModules;
+
+    const moduleX = Math.floor(canvasX / modulePixelSize);
+    const moduleY = Math.floor(canvasY / modulePixelSize);
+
+    // Check if click is within content area (not quiet zone)
+    const inQuietZone = moduleX < canvasQuietZone || moduleX >= contentModules + canvasQuietZone ||
+                        moduleY < canvasQuietZone || moduleY >= contentModules + canvasQuietZone;
+
+    if (!inQuietZone) {
+        // Convert to content coordinates
+        const contentX = moduleX - canvasQuietZone;
+        const contentY = moduleY - canvasQuietZone;
+
+        // Check if it's a finder pattern (can't edit finders)
+        const isFinder = isFinderPattern(contentX, contentY, contentModules);
+
+        if (!isFinder) {
+            const key = `${contentX},${contentY}`;
+
+            if (state.interactionMode === 'color' && editingMode && selectedPaletteColor) {
+                // Color mode: apply selected color
+                state.moduleColors[key] = {
+                    type: selectedPaletteColor.type,
+                    index: selectedPaletteColor.index
+                };
+                console.log(`Module (${contentX},${contentY}) set to ${selectedPaletteColor.type}[${selectedPaletteColor.index}]`);
+                drawCanvas(ctx);
+            } else if (state.interactionMode === 'delete') {
+                // Delete mode: hide module
+                state.moduleColors[key] = {
+                    type: 'hidden'
+                };
+                console.log(`Module (${contentX},${contentY}) hidden`);
+                drawCanvas(ctx);
+            }
+        }
+    }
+}
+
+canvas.addEventListener('touchstart', (e) => {
+    lastTouchType = 'touch';
+
+    // Prevent default to avoid scrolling and double-firing with mouse events
+    e.preventDefault();
+
+    const rect = canvas.getBoundingClientRect();
+
+    if (e.touches.length === 2) {
+        // Two-finger pinch for scaling
+        initialPinchDistance = getTouchDistance(e.touches[0], e.touches[1]);
+        initialLogoScale = state.logoScale;
+    } else if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        const canvasX = touch.clientX - rect.left;
+        const canvasY = touch.clientY - rect.top;
+
+        // Position mode: allow dragging logo
+        if (state.interactionMode === 'position' && state.logoImage) {
+            isDragging = true;
+            dragStartX = canvasX;
+            dragStartY = canvasY;
+            logoStartX = state.logoX;
+            logoStartY = state.logoY;
+            return;
+        }
+
+        // Color mode or Delete mode: handle module tap
+        if (state.interactionMode === 'color' || state.interactionMode === 'delete') {
+            handleModuleClick(canvasX, canvasY);
+        }
+    }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+    lastTouchType = 'touch';
+    e.preventDefault();
+
+    const rect = canvas.getBoundingClientRect();
+
+    if (e.touches.length === 2 && initialPinchDistance > 0) {
+        // Two-finger pinch: scale logo
+        const currentDistance = getTouchDistance(e.touches[0], e.touches[1]);
+        const scaleFactor = currentDistance / initialPinchDistance;
+
+        // Apply scale factor to initial scale
+        let newScale = Math.round(initialLogoScale * scaleFactor);
+
+        // Clamp to reasonable range (10-200%)
+        newScale = Math.max(10, Math.min(200, newScale));
+
+        state.logoScale = newScale;
+        logoScale.value = newScale;
+        document.getElementById('logoScaleLabel').textContent = newScale;
+
+        drawCanvas(ctx, true); // Skip overlay during pinch for performance
+    } else if (e.touches.length === 1 && isDragging) {
+        // Single finger drag
+        const touch = e.touches[0];
+        const mouseX = touch.clientX - rect.left;
+        const mouseY = touch.clientY - rect.top;
+
+        // Calculate delta from initial touch position
+        const deltaX = mouseX - dragStartX;
+        const deltaY = mouseY - dragStartY;
+
+        // Apply delta to initial logo position (as percentage)
+        const deltaXPercent = (deltaX / canvas.width) * 100;
+        const deltaYPercent = (deltaY / canvas.height) * 100;
+
+        state.logoX = Math.max(0, Math.min(100, logoStartX + deltaXPercent));
+        state.logoY = Math.max(0, Math.min(100, logoStartY + deltaYPercent));
+
+        // Skip overlay drawing while dragging for better performance
+        drawCanvas(ctx, true);
+    }
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+    lastTouchType = 'touch';
+    e.preventDefault();
+
+    if (e.touches.length === 0) {
+        // All fingers lifted
+        if (isDragging || initialPinchDistance > 0) {
+            isDragging = false;
+            initialPinchDistance = 0;
+            state.cachedModuleColors = {}; // Clear cache so colors recalculate
+            updateModeButtons();
+            drawCanvas(ctx); // Full redraw
+        }
+    } else if (e.touches.length === 1) {
+        // One finger still down (was pinching, now single touch)
+        initialPinchDistance = 0;
+
+        // Check if we should start dragging with remaining finger
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        const canvasX = touch.clientX - rect.left;
+        const canvasY = touch.clientY - rect.top;
+
+        if (state.interactionMode === 'position' && state.logoImage) {
+            isDragging = true;
+            dragStartX = canvasX;
+            dragStartY = canvasY;
+            logoStartX = state.logoX;
+            logoStartY = state.logoY;
+        }
+    }
+}, { passive: false });
+
+canvas.addEventListener('touchcancel', (e) => {
+    lastTouchType = 'touch';
+    e.preventDefault();
+
+    if (isDragging || initialPinchDistance > 0) {
+        isDragging = false;
+        initialPinchDistance = 0;
+        state.cachedModuleColors = {}; // Clear cache
+        updateModeButtons();
+        drawCanvas(ctx); // Full redraw
+    }
+}, { passive: false });
+
+qrText.addEventListener('input', (e) => {
+    state.qrText = e.target.value;
+});
+
+eccLevel.addEventListener('change', (e) => {
+    state.eccLevel = e.target.value;
+});
+
+exportBtn.addEventListener('click', () => {
+    try {
+        canvas.toBlob((blob) => {
+            if (blob) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.download = 'custom-qr-code.png';
+                link.href = url;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }
+        }, 'image/png');
+    } catch (error) {
+        console.error('Export error:', error);
+        const link = document.createElement('a');
+        link.download = 'custom-qr-code.png';
+        link.href = canvas.toDataURL('image/png');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+});
+
+// Initial setup
+updatePaletteUI();
+updateModeButtons();
+
+
+// Initialize canvas on page load
+console.log('Event handlers loaded');
+console.log('Canvas:', canvas);
+console.log('Context:', ctx);
+
+// Try to draw initial canvas
+if (ctx) {
+    try {
+        drawCanvas(ctx);
+        console.log('Initial drawCanvas completed');
+    } catch (error) {
+        console.error('Error in initial drawCanvas:', error);
+    }
+}
