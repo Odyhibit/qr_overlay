@@ -25,7 +25,7 @@ export const state = {
     moduleColors: {},     // Per-module color overrides: {x,y} -> colorIndex
     cachedModuleColors: {}, // Cached computed colors for performance during drag
     overlayAlpha: 1,      // Overall QR overlay opacity
-    backgroundFill: 'transparent',  // 'transparent', 'light', or 'dark'
+    backgroundFill: 'light',  // 'transparent', 'light', or 'dark'
     logoScale: 100,
     logoX: 50,
     logoY: 50,

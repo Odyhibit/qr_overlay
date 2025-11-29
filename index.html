@@ -13,63 +13,63 @@
         <div class="sidebar">
             <h1>QR Code Generator</h1>
 
-            <!-- Setup Panel (Collapsible) -->
+            <!-- Main Tab Container -->
             <div class="section">
-                <label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-weight: 600; font-size: 16px;" id="setupToggle">
-                    <span>Files [QR, logo]</span>
-                    <span id="setupArrow" style="transition: transform 0.2s;">▼</span>
-                </label>
-                <div id="setupPanel" style="margin-top: 12px;">
-                    <!-- QR Code Section with Tabs -->
-                    <div class="section" style="padding: 0; margin-bottom: 16px;">
-                        <label>QR Code</label>
+                <!-- Tab Headers -->
+                <div class="main-tab-headers">
+                    <button class="main-tab-header active" data-tab="files-tab">Files</button>
+                    <button class="main-tab-header" data-tab="customization-tab">Customization</button>
+                </div>
 
-                        <!-- Tab Headers -->
-                        <div class="tab-container">
-                            <div class="tab-headers">
-                                <button class="tab-header active" data-tab="generate-tab">Generate</button>
-                                <button class="tab-header" data-tab="upload-tab">Upload</button>
+                <!-- Tab Contents -->
+                <div class="main-tab-content">
+                    <!-- FILES TAB -->
+                    <div id="files-tab" class="main-tab-pane active">
+                        <!-- QR Text -->
+                        <div class="section" style="padding: 0; margin-bottom: 12px;">
+                            <label>QR Code Text</label>
+                            <input
+                                type="text"
+                                id="qrText"
+                                value="https://example.com"
+                                placeholder="Enter URL or text"
+                            />
+                        </div>
+
+                        <!-- Generate and Upload Buttons -->
+                        <div class="section" style="padding: 0; margin-bottom: 12px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <button id="generateBtn" class="primary" style="margin: 0;">Generate QR</button>
+                                <label class="file-input-label secondary" style="margin: 0; padding: 8px 16px;">
+                                    <span>Upload QR</span>
+                                    <input type="file" id="qrUpload" accept="image/*" class="hidden" />
+                                </label>
                             </div>
+                        </div>
 
-                            <!-- Tab Contents -->
-                            <div class="tab-content">
-                                <!-- Generate Tab -->
-                                <div id="generate-tab" class="tab-pane active">
-                                    <input
-                                        type="text"
-                                        id="qrText"
-                                        value="https://example.com"
-                                        placeholder="Enter URL or text"
-                                    />
-                                    <div style="margin-top: 8px;">
-                                        <label style="font-size: 12px; font-weight: 500; color: #6b7280; display: block; margin-bottom: 4px;">Error Correction Level</label>
-                                        <select id="eccLevel" class="range-full" style="padding: 8px; border-radius: 6px; border: 1px solid #d1d5db; background: white; font-size: 14px;">
-                                            <option value="L">L - Low (7%)</option>
-                                            <option value="M">M - Medium (15%)</option>
-                                            <option value="Q">Q - Quartile (25%)</option>
-                                            <option value="H" selected>H - High (30%)</option>
-                                        </select>
-                                    </div>
-                                    <div style="margin-top: 8px;">
-                                        <label style="font-size: 12px; font-weight: 500; color: #6b7280; display: block; margin-bottom: 4px;">Canvas Quiet Zone: <span id="canvasQuietZoneLabel">2</span> modules</label>
-                                        <input type="range" id="canvasQuietZone" min="0" max="4" value="2" class="range-full" />
-                                    </div>
-                                    <button
-                                        id="generateBtn"
-                                        class="primary"
-                                        style="margin-top: 8px; width: 100%;"
-                                    >
-                                        Generate QR Code
-                                    </button>
+
+
+                        <!-- Advanced Settings (Collapsible) -->
+                        <div class="section" style="padding: 0; margin-bottom: 12px;">
+                            <button id="advancedToggle" type="button" style="width: 100%; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; border: 1px solid #e5e7eb; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; color: #374151; cursor: pointer;">
+                                <span>Advanced Settings</span>
+                                <span id="advancedArrow" style="transition: transform 0.2s; font-size: 12px;">▼</span>
+                            </button>
+                            <div id="advancedPanel" style="display: none; margin-top: 12px;">
+                                <!-- ECC Level (Generate mode only) -->
+                                <div class="section" id="eccLevelSection" style="padding: 0; margin-bottom: 12px;">
+                                    <label>Error Correction Level</label>
+                                    <select id="eccLevel" class="range-full" style="padding: 8px; border-radius: 6px; border: 1px solid #d1d5db; background: white; font-size: 14px;">
+                                        <option value="L">L - Low (7%)</option>
+                                        <option value="M">M - Medium (15%)</option>
+                                        <option value="Q">Q - Quartile (25%)</option>
+                                        <option value="H" selected>H - High (30%)</option>
+                                    </select>
                                 </div>
-
-                                <!-- Upload Tab -->
-                                <div id="upload-tab" class="tab-pane">
-                                    <label class="file-input-label secondary">
-                                        <span>Upload QR Code</span>
-                                        <input type="file" id="qrUpload" accept="image/*" class="hidden" />
-                                    </label>
-                                    <select id="qrSize" class="hidden" style="margin-top: 8px;">
+                                <!-- QR Size (Upload mode only, shown after upload) -->
+                                <div class="section hidden" id="qrSizeSection" style="padding: 0; margin-bottom: 12px;">
+                                    <label>QR Size</label>
+                                    <select id="qrSize" class="range-full" style="padding: 8px; border-radius: 6px; border: 1px solid #d1d5db; background: white; font-size: 14px;">
                                         <option value="21">21×21</option>
                                         <option value="25" selected>25×25</option>
                                         <option value="29">29×29</option>
@@ -81,153 +81,151 @@
                                         <option value="53">53×53</option>
                                         <option value="57">57×57</option>
                                     </select>
-                                    <div class="hidden" id="quietZoneContainer" style="margin-top: 8px;">
-                                        <label class="small">Quiet Zone Size (pixels per side):</label>
-                                        <input type="number" id="quietZone" min="0" max="100" value="16" />
-                                        <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">Measure the white border in your QR image</div>
-                                    </div>
+                                </div>
+
+                                <!-- Canvas Quiet Zone (both modes) -->
+                                <div class="section" style="padding: 0; margin-bottom: 12px;">
+                                    <label>Canvas Quiet Zone: <span id="canvasQuietZoneLabel">2</span> modules</label>
+                                    <input type="range" id="canvasQuietZone" min="0" max="4" value="2" class="range-full" />
+                                </div>
+
+                                <!-- QR Quiet Zone pixels (Upload mode only, shown after upload) -->
+                                <div class="section hidden" id="quietZoneContainer" style="padding: 0; margin-bottom: 12px;">
+                                    <label>QR Quiet Zone: <span id="quietZonePixelsLabel">16</span> pixels</label>
+                                    <input type="number" id="quietZone" min="0" max="100" value="16" style="width: 100%;" />
+                                    <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">Measure the white border in your QR image</div>
+                                </div>
+
+                                <!-- Overlay Opacity -->
+                                <div class="section" style="padding: 0; margin-bottom: 12px;">
+                                    <label>Overlay Opacity: <span id="overlayAlphaLabel">100</span>%</label>
+                                    <input type="range" id="overlayAlpha" min="0" max="100" value="100" class="range-full" />
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Background Logo -->
+                        <div class="section" style="padding: 0; margin-bottom: 12px;">
+                            <label>Background Logo</label>
+                            <select id="logoSelect" class="range-full" style="padding: 8px; border-radius: 6px; border: 1px solid #d1d5db; background: white; font-size: 14px;">
+                                <option value="">-- Select a logo --</option>
+                                <option disabled>─────────────</option>
+                                <option value="facebook.png">facebook</option>
+                                <option value="discord.png">discord</option>
+                                <option value="github.png">github</option>
+                                <option value="twitter.jpg">X(twitter)</option>
+                                <option value="instagram.png">instagram</option>
+                                <option value="linkedin.png">linkedin</option>
+                                <option value="youtube.png">youtube</option>
+                                <option value="tiktok.png">tiktok</option>
+                                <option value="reddit.png">reddit</option>
+                                <option disabled>─────────────</option>
+                                <option value="__upload__">Upload Custom...</option>
+                            </select>
+                            <input type="file" id="logoUpload" accept="image/*" class="hidden" />
+                        </div>
+
+                        <!-- Logo Scale -->
+                        <div class="section" style="padding: 0; margin-bottom: 12px;">
+                            <label>Logo Scale: <span id="logoScaleLabel">100</span>%</label>
+                            <input type="range" id="logoScale" min="10" max="120" value="100" class="range-full" />
+                        </div>
+
+                        <!-- Background Fill -->
+                        <div class="section" style="padding: 0; margin-bottom: 12px;">
+                            <label>Background Fill</label>
+                            <select id="backgroundFill" class="range-full" style="padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; background: white;">
+                                <option value="transparent">Transparent</option>
+                                <option value="light" selected>Light Color</option>
+                                <option value="dark">Dark Color</option>
+                            </select>
+                            <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">Fill for areas without logo or when opacity &lt; 100%</div>
+                        </div>
                     </div>
 
-                    <!-- Logo Section with Dropdown -->
-                    <div class="section" style="padding: 0; margin-bottom: 16px;">
-                        <label>Background Logo</label>
-                        <select id="logoSelect" class="range-full" style="padding: 8px; border-radius: 6px; border: 1px solid #d1d5db; background: white; font-size: 14px;">
-                            <option value="">-- Select a logo --</option>
-                            <option disabled>─────────────</option>
-                            <option value="facebook.png">facebook</option>
-                            <option value="discord.png">discord</option>
-                            <option value="github.png">github</option>
-                            <option value="twitter.jpg">X(twitter)</option>
-                            <option value="instagram.png">instagram.png</option>
-                            <option value="linkedin.png">linkedin.png</option>
-                            <option value="youtube.png">youtube.png</option>
-                            <option value="tiktok.png">tiktok.png</option>
-                            <option value="github.png">github.png</option>
-                            <option value="reddit.png">reddit.png</option>
-                            <option disabled>─────────────</option>
-                            <option value="__upload__">Upload Custom...</option>
-                        </select>
-                        <input type="file" id="logoUpload" accept="image/*" class="hidden" />
-                    </div>
-
-                    <!-- Logo Scale -->
-                    <div class="section" style="padding: 0; margin-bottom: 16px;">
-                        <label>Logo Scale: <span id="logoScaleLabel">100</span>%</label>
-                        <input type="range" id="logoScale" min="10" max="120" value="100" class="range-full" />
-                    </div>
-
-                </div>
-            </div>
-
-
-            <!-- Finder Pattern -->
-            <div class="section">
-                <label>Finder Pattern</label>
-                <select id="finderPattern" class="range-full" style="padding: 8px; border-radius: 6px; border: 1px solid #d1d5db; background: white; font-size: 14px;">
-                    <option value="square">Square (Traditional)</option>
-                    <option value="circle">Circle (Modern)</option>
-                    <option value="hybrid">Hybrid (Circle Outer + Square Center)</option>
-                    <option value="hybrid-inverse">Hybrid (Square Outer + Circle Center)</option>
-                </select>
-
-            </div>
-
-            <!-- Overlay Opacity -->
-            <div class="section">
-                <label>Overlay Opacity: <span id="overlayAlphaLabel">100</span>%</label>
-                <input type="range" id="overlayAlpha" min="0" max="100" value="100" class="range-full" />
-
-            </div>
-
+                    <!-- CUSTOMIZATION TAB -->
+                    <div id="customization-tab" class="main-tab-pane">
+                        <!-- Finder Pattern -->
+                        <div class="section" style="padding: 0; margin-bottom: 12px;">
+                            <label>Finder Pattern</label>
+                            <select id="finderPattern" class="range-full" style="padding: 8px; border-radius: 6px; border: 1px solid #d1d5db; background: white; font-size: 14px;">
+                                <option value="square">Square (Traditional)</option>
+                                <option value="circle">Circle (Modern)</option>
+                                <option value="hybrid">Hybrid (Circle Outer + Square Center)</option>
+                                <option value="hybrid-inverse">Hybrid (Square Outer + Circle Center)</option>
+                            </select>
+                        </div>
 
                         <!-- Module Shape -->
-            <div class="section">
-                <label>Module Shape</label>
-                <select id="moduleShape" class="range-full" style="padding: 8px; border-radius: 6px; border: 1px solid #d1d5db; background: white; font-size: 14px;">
-                    <option value="square">Square</option>
-                    <option value="circle">Circle</option>
-                    <option value="rounded">Rounded Square</option>
-                    <option value="diamond">Diamond</option>
-                </select>
-
-            </div>
-
-            <!-- Module Size -->
-            <div class="section">
-                <label>Module Size: <span id="moduleSizeLabel">50</span>%</label>
-                <input type="range" id="moduleSize" min="20" max="100" value="50" class="range-full" />
-            </div>
-
-            <!-- Color Mode -->
-            <div class="section">
-                <label>Color Mode</label>
-                <select id="colorMode" class="range-full" style="padding: 8px; border-radius: 6px; border: 1px solid #d1d5db; background: white; font-size: 14px;">
-                    <option value="palette">Palette - Use color palette</option>
-                    <option value="gradient">Gradient - Sample logo colors</option>
-                </select>
-            </div>
-
-            <!-- Color Palette Editor -->
-            <div class="section">
-                <label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" id="paletteToggle">
-                    <span>Color Palette</span>
-                    <span id="paletteArrow" style="transition: transform 0.2s;">▲</span>
-                </label>
-                <div id="paletteEditor" style="display: block; margin-top: 12px;">
-                    <div id="paletteInstructions" style="font-size: 11px; color: #6b7280; margin-bottom: 8px;">Click a color below to select it, then click modules on canvas to apply</div>
-
-                    <!-- Gradient Mode Controls -->
-                    <div id="gradientControls" style="display: none; margin-bottom: 12px; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">
-                        <div style="margin-bottom: 12px;">
-                            <label>Dark Max Luminosity: <span id="darkLumLabel">33</span>%</label>
-                            <input type="range" id="darkMaxLuminosity" min="0" max="50" value="33" class="range-full" />
-                            <div style="font-size: 11px; color: #6b7280; margin-top: 4px;"><- easier to scan Dark modules will be 0-<span id="darkLumLabel2">33</span>% brightness</div>
+                        <div class="section" style="padding: 0; margin-bottom: 12px;">
+                            <label>Module Shape</label>
+                            <select id="moduleShape" class="range-full" style="padding: 8px; border-radius: 6px; border: 1px solid #d1d5db; background: white; font-size: 14px;">
+                                <option value="square">Square</option>
+                                <option value="circle">Circle</option>
+                                <option value="rounded">Rounded Square</option>
+                                <option value="diamond">Diamond</option>
+                            </select>
                         </div>
-                        <div>
-                            <label>Light Min Luminosity: <span id="lightLumLabel">66</span>%</label>
-                            <input type="range" id="lightMinLuminosity" min="50" max="100" value="66" class="range-full" />
-                            <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">-> easier to scan Light modules will be <span id="lightLumLabel2">66</span>-100% brightness</div>
-                        </div>
-                    </div>
 
-                    <div style="margin-bottom: 12px;">
-                        <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px;">Dark Colors (4)</div>
-                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
-                            <input type="color" id="darkPalette0" class="palette-color" data-type="dark" data-index="0" />
-                            <input type="color" id="darkPalette1" class="palette-color" data-type="dark" data-index="1" />
-                            <input type="color" id="darkPalette2" class="palette-color" data-type="dark" data-index="2" />
-                            <input type="color" id="darkPalette3" class="palette-color" data-type="dark" data-index="3" />
+                        <!-- Module Size -->
+                        <div class="section" style="padding: 0; margin-bottom: 12px;">
+                            <label>Module Size: <span id="moduleSizeLabel">50%</span></label>
+                            <input type="range" id="moduleSize" min="20" max="100" value="50" class="range-full" />
                         </div>
-                    </div>
 
-                    <div style="margin-bottom: 12px;">
-                        <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px;">Light Colors (4)</div>
-                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
-                            <input type="color" id="lightPalette0" class="palette-color" data-type="light" data-index="0" />
-                            <input type="color" id="lightPalette1" class="palette-color" data-type="light" data-index="1" />
-                            <input type="color" id="lightPalette2" class="palette-color" data-type="light" data-index="2" />
-                            <input type="color" id="lightPalette3" class="palette-color" data-type="light" data-index="3" />
+                        <!-- Color Mode -->
+                        <div class="section" style="padding: 0; margin-bottom: 12px;">
+                            <label>Color Mode</label>
+                            <select id="colorMode" class="range-full" style="padding: 8px; border-radius: 6px; border: 1px solid #d1d5db; background: white; font-size: 14px;">
+                                <option value="palette">Palette - Use color palette</option>
+                                <option value="gradient">Gradient - Sample logo colors</option>
+                            </select>
                         </div>
-                    </div>
 
-                    <div id="contrastWarning" style="display: none; background: #fef3c7; border: 1px solid #fbbf24; padding: 8px; border-radius: 4px; font-size: 11px; color: #92400e;">
-                        Low contrast detected between some colors. QR may not scan reliably.
+                        <!-- Palette Mode Controls -->
+                        <div id="paletteControls">
+                            <div id="paletteInstructions" style="font-size: 11px; color: #6b7280; margin-bottom: 12px;">Click a color below to select it, then click modules on canvas to apply</div>
+
+                            <div class="section" style="padding: 0; margin-bottom: 12px;">
+                                <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px;">Dark Colors (4)</div>
+                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+                                    <input type="color" id="darkPalette0" class="palette-color" data-type="dark" data-index="0" />
+                                    <input type="color" id="darkPalette1" class="palette-color" data-type="dark" data-index="1" />
+                                    <input type="color" id="darkPalette2" class="palette-color" data-type="dark" data-index="2" />
+                                    <input type="color" id="darkPalette3" class="palette-color" data-type="dark" data-index="3" />
+                                </div>
+                            </div>
+
+                            <div class="section" style="padding: 0; margin-bottom: 12px;">
+                                <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px;">Light Colors (4)</div>
+                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+                                    <input type="color" id="lightPalette0" class="palette-color" data-type="light" data-index="0" />
+                                    <input type="color" id="lightPalette1" class="palette-color" data-type="light" data-index="1" />
+                                    <input type="color" id="lightPalette2" class="palette-color" data-type="light" data-index="2" />
+                                    <input type="color" id="lightPalette3" class="palette-color" data-type="light" data-index="3" />
+                                </div>
+                            </div>
+
+                            <div id="contrastWarning" style="display: none; background: #fef3c7; border: 1px solid #fbbf24; padding: 8px; border-radius: 4px; font-size: 11px; color: #92400e;">
+                                Low contrast detected between some colors. QR may not scan reliably.
+                            </div>
+                        </div>
+
+                        <!-- Gradient Mode Controls -->
+                        <div id="gradientControls" style="display: none;">
+                            <div class="section" style="padding: 0; margin-bottom: 12px;">
+                                <label>Dark Max Luminosity: <span id="darkLumLabel">33</span>%</label>
+                                <input type="range" id="darkMaxLuminosity" min="0" max="50" value="33" class="range-full" />
+                                <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">Dark modules will be 0-<span id="darkLumLabel2">33</span>% brightness</div>
+                            </div>
+                            <div class="section" style="padding: 0; margin-bottom: 12px;">
+                                <label>Light Min Luminosity: <span id="lightLumLabel">66</span>%</label>
+                                <input type="range" id="lightMinLuminosity" min="50" max="100" value="66" class="range-full" />
+                                <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">Light modules will be <span id="lightLumLabel2">66</span>-100% brightness</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Background Fill -->
-            <div class="section">
-                <label>Background Fill</label>
-                <select id="backgroundFill" class="range-full" style="padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; background: white;">
-                    <option value="transparent">Transparent</option>
-                    <option value="light">Light Color</option>
-                    <option value="dark">Dark Color</option>
-                </select>
-                <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">Fill for areas without logo or when opacity &lt; 100%</div>
             </div>
 
             <!-- Export -->

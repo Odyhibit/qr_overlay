@@ -568,53 +568,107 @@ if (colorOverride) {
     const logoLocalX = moduleCenterX - logoInfo.x;
     const logoLocalY = moduleCenterY - logoInfo.y;
 
-    // Convert from scaled logo coordinates to original image coordinates
-    const logoOriginalX = Math.floor((logoLocalX / logoInfo.width) * logoInfo.image.width);
-    const logoOriginalY = Math.floor((logoLocalY / logoInfo.height) * logoInfo.image.height);
+    // Check if module center is within the scaled logo bounds
+    const isInsideLogo = logoLocalX >= 0 && logoLocalX < logoInfo.width &&
+                         logoLocalY >= 0 && logoLocalY < logoInfo.height;
 
-    // Clamp to logo bounds
-    const clampedX = Math.max(0, Math.min(logoInfo.image.width - 1, logoOriginalX));
-    const clampedY = Math.max(0, Math.min(logoInfo.image.height - 1, logoOriginalY));
+    if (isInsideLogo) {
+        // Convert from scaled logo coordinates to original image coordinates
+        const logoOriginalX = Math.floor((logoLocalX / logoInfo.width) * logoInfo.image.width);
+        const logoOriginalY = Math.floor((logoLocalY / logoInfo.height) * logoInfo.image.height);
 
-    const logoPixelIndex = (clampedY * logoInfo.image.width + clampedX) * 4;
+        // Clamp to logo bounds (safety)
+        const clampedX = Math.max(0, Math.min(logoInfo.image.width - 1, logoOriginalX));
+        const clampedY = Math.max(0, Math.min(logoInfo.image.height - 1, logoOriginalY));
 
-    const sampledR = logoImageData.data[logoPixelIndex];
-    const sampledG = logoImageData.data[logoPixelIndex + 1];
-    const sampledB = logoImageData.data[logoPixelIndex + 2];
+        const logoPixelIndex = (clampedY * logoInfo.image.width + clampedX) * 4;
 
-    if (state.colorMode === 'gradient') {
-// Gradient mode: preserve hue/saturation, adjust lightness only when needed
-const hsl = rgbToHsl(sampledR, sampledG, sampledB);
+        const sampledR = logoImageData.data[logoPixelIndex];
+        const sampledG = logoImageData.data[logoPixelIndex + 1];
+        const sampledB = logoImageData.data[logoPixelIndex + 2];
 
-// Adjust lightness based on module type
-if (isDark) {
-    // Dark module: only darken if logo pixel is too bright
-    // If already dark enough, keep it
-    if (hsl.l > state.darkMaxLuminosity) {
-        hsl.l = state.darkMaxLuminosity;
-    }
-    // Otherwise keep original darkness
-} else {
-    // Light module: only brighten if logo pixel is too dark
-    // If already bright enough, keep it
-    if (hsl.l < state.lightMinLuminosity) {
-        hsl.l = state.lightMinLuminosity;
-    }
-    // Otherwise keep original brightness (don't reduce!)
-}
+        if (state.colorMode === 'gradient') {
+            // Gradient mode: preserve hue/saturation, adjust lightness only when needed
+            const hsl = rgbToHsl(sampledR, sampledG, sampledB);
 
-// Convert back to RGB
-const rgb = hslToRgb(hsl.h, hsl.s, hsl.l);
+            // Adjust lightness based on module type
+            if (isDark) {
+                // Dark module: only darken if logo pixel is too bright
+                // If already dark enough, keep it
+                if (hsl.l > state.darkMaxLuminosity) {
+                    hsl.l = state.darkMaxLuminosity;
+                }
+                // Otherwise keep original darkness
+            } else {
+                // Light module: only brighten if logo pixel is too dark
+                // If already bright enough, keep it
+                if (hsl.l < state.lightMinLuminosity) {
+                    hsl.l = state.lightMinLuminosity;
+                }
+                // Otherwise keep original brightness (don't reduce!)
+            }
 
-// Convert to hex
-const r = rgb.r.toString(16).padStart(2, '0');
-const g = rgb.g.toString(16).padStart(2, '0');
-const b = rgb.b.toString(16).padStart(2, '0');
-moduleColor = `#${r}${g}${b}`;
+            // Convert back to RGB
+            const rgb = hslToRgb(hsl.h, hsl.s, hsl.l);
+
+            // Convert to hex
+            const r = rgb.r.toString(16).padStart(2, '0');
+            const g = rgb.g.toString(16).padStart(2, '0');
+            const b = rgb.b.toString(16).padStart(2, '0');
+            moduleColor = `#${r}${g}${b}`;
+        } else {
+            // Palette mode: find best matching color from appropriate palette
+            const palette = isDark ? state.darkPalette : state.lightPalette;
+            moduleColor = findBestMatch([sampledR, sampledG, sampledB], palette);
+        }
     } else {
-// Palette mode: find best matching color from appropriate palette
-const palette = isDark ? state.darkPalette : state.lightPalette;
-moduleColor = findBestMatch([sampledR, sampledG, sampledB], palette);
+        // Module center is outside logo bounds
+        if (state.colorMode === 'palette') {
+            // Palette mode: use palette based on module type (dark or light from QR code)
+            const palette = isDark ? state.darkPalette : state.lightPalette;
+            moduleColor = palette[0];
+        } else {
+            // Gradient mode: use background fill color with luminosity adjustments
+            let fillColor;
+            if (state.backgroundFill === 'light') {
+                fillColor = state.lightColor;
+            } else if (state.backgroundFill === 'dark') {
+                fillColor = state.darkColor;
+            } else {
+                // Transparent - use default colors
+                fillColor = isDark ? state.darkColor : state.lightColor;
+            }
+
+            if (state.backgroundFill !== 'transparent') {
+                // Parse the fill color to RGB
+                const hex = fillColor.replace('#', '');
+                const r = parseInt(hex.substring(0, 2), 16);
+                const g = parseInt(hex.substring(2, 4), 16);
+                const b = parseInt(hex.substring(4, 6), 16);
+
+                const hsl = rgbToHsl(r, g, b);
+
+                // Apply luminosity based on module type
+                if (isDark) {
+                    if (hsl.l > state.darkMaxLuminosity) {
+                        hsl.l = state.darkMaxLuminosity;
+                    }
+                } else {
+                    if (hsl.l < state.lightMinLuminosity) {
+                        hsl.l = state.lightMinLuminosity;
+                    }
+                }
+
+                // Convert back to RGB
+                const rgb = hslToRgb(hsl.h, hsl.s, hsl.l);
+                const rHex = rgb.r.toString(16).padStart(2, '0');
+                const gHex = rgb.g.toString(16).padStart(2, '0');
+                const bHex = rgb.b.toString(16).padStart(2, '0');
+                moduleColor = `#${rHex}${gHex}${bHex}`;
+            } else {
+                moduleColor = fillColor;
+            }
+        }
     }
 } else {
     // No logo - use default colors

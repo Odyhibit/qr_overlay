@@ -36,13 +36,12 @@ const eccLevel = document.getElementById('eccLevel');
 const positionModeBtn = document.getElementById('positionModeBtn');
 const colorModeBtn = document.getElementById('colorModeBtn');
 const deleteModeBtn = document.getElementById('deleteModeBtn');
-const paletteToggle = document.getElementById('paletteToggle');
-const paletteEditor = document.getElementById('paletteEditor');
-const setupToggle = document.getElementById('setupToggle');
-const setupPanel = document.getElementById('setupPanel');
 const gradientControls = document.getElementById('gradientControls');
 const paletteInstructions = document.getElementById('paletteInstructions');
 const contrastWarning = document.getElementById('contrastWarning');
+const advancedToggle = document.getElementById('advancedToggle');
+const advancedPanel = document.getElementById('advancedPanel');
+const advancedArrow = document.getElementById('advancedArrow');
 // Canvas interaction state
 let isDragging = false;
 let dragStartX = 0;
@@ -58,8 +57,54 @@ let lastTouchType = null; // 'mouse' or 'touch' - prevents double-firing
 let initialPinchDistance = 0;
 let initialLogoScale = 100;
 
+// Helper function to update module size label with pixel size
+function updateModuleSizeLabel() {
+    const canvasSize = 600;
+    const totalModules = state.qrSize + 2 * state.canvasQuietZone;
+    const modulePixelSize = canvasSize / totalModules;
+    const actualModuleSize = modulePixelSize * (state.moduleSize / 100);
+
+    document.getElementById('moduleSizeLabel').textContent =
+        `${state.moduleSize}% (${actualModuleSize.toFixed(1)}px)`;
+}
+
+// Helper function to update UI visibility based on mode
+function updateModeVisibility() {
+    const eccLevelSection = document.getElementById('eccLevelSection');
+    const qrSizeSection = document.getElementById('qrSizeSection');
+    const quietZoneContainer = document.getElementById('quietZoneContainer');
+    const paletteControls = document.getElementById('paletteControls');
+    const gradientControls = document.getElementById('gradientControls');
+
+    // Update Generate vs Upload mode visibility
+    if (state.useUploadedQR) {
+        // Upload mode: hide ECC, show QR Size and Quiet Zone pixels
+        eccLevelSection.classList.add('hidden');
+        qrSizeSection.classList.remove('hidden');
+        quietZoneContainer.classList.remove('hidden');
+    } else {
+        // Generate mode: show ECC, hide QR Size and Quiet Zone pixels
+        eccLevelSection.classList.remove('hidden');
+        qrSizeSection.classList.add('hidden');
+        quietZoneContainer.classList.add('hidden');
+    }
+
+    // Update Palette vs Gradient mode visibility
+    if (state.colorMode === 'gradient') {
+        paletteControls.style.display = 'none';
+        gradientControls.style.display = 'block';
+    } else {
+        paletteControls.style.display = 'block';
+        gradientControls.style.display = 'none';
+    }
+}
+
 // Event Listeners
-generateBtn.addEventListener('click', () => generateQRCode(() => drawCanvas(ctx), updateModeButtons));
+generateBtn.addEventListener('click', () => {
+    state.useUploadedQR = false;
+    generateQRCode(() => drawCanvas(ctx), updateModeButtons);
+    updateModeVisibility();
+});
 
 qrUpload.addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -81,8 +126,8 @@ qrUpload.addEventListener('change', (e) => {
                     // Update UI
                     qrSizeSelect.value = detected.moduleCount;
                     quietZoneInput.value = detected.quietZonePixels;
-                    qrSizeSelect.classList.remove('hidden');
-                    quietZoneContainer.classList.remove('hidden');
+                    document.getElementById('quietZonePixelsLabel').textContent = detected.quietZonePixels;
+                    updateModeVisibility();
 
                     console.log(`Detected: ${detected.moduleCount}×${detected.moduleCount} QR code with ${detected.quietZonePixels}px quiet zone`);
 
@@ -95,6 +140,7 @@ qrUpload.addEventListener('change', (e) => {
                         document.getElementById('logoScaleLabel').textContent = contentScale;
                     }
 
+                    updateModuleSizeLabel();
                     drawCanvas(ctx);
                     // Switch to delete mode when only QR is present
                     state.interactionMode = 'delete';
@@ -121,11 +167,13 @@ qrSizeSelect.addEventListener('change', (e) => {
         document.getElementById('logoScaleLabel').textContent = contentScale;
     }
 
+    updateModuleSizeLabel();
     drawCanvas(ctx);
 });
 
 quietZoneInput.addEventListener('input', (e) => {
     state.quietZonePixels = parseInt(e.target.value);
+    document.getElementById('quietZonePixelsLabel').textContent = e.target.value;
     drawCanvas(ctx);
 });
 
@@ -142,6 +190,7 @@ canvasQuietZoneInput.addEventListener('input', (e) => {
         document.getElementById('logoScaleLabel').textContent = contentScale;
     }
 
+    updateModuleSizeLabel();
     drawCanvas(ctx);
 });
 
@@ -190,7 +239,7 @@ logoUpload.addEventListener('change', (e) => {
 
 moduleSize.addEventListener('input', (e) => {
     state.moduleSize = parseInt(e.target.value);
-    document.getElementById('moduleSizeLabel').textContent = state.moduleSize;
+    updateModuleSizeLabel();
     drawCanvas(ctx);
 });
 
@@ -218,18 +267,16 @@ backgroundFill.addEventListener('change', (e) => {
 colorMode.addEventListener('change', (e) => {
     state.colorMode = e.target.value;
     state.cachedModuleColors = {}; // Clear color cache when mode changes
-    // Toggle visibility of gradient controls and palette instructions
+
+    // Update visibility and deselect palette color if switching to gradient
     if (state.colorMode === 'gradient') {
-        gradientControls.style.display = 'block';
-        paletteInstructions.style.display = 'none';
         // Deselect any palette color and exit editing mode
         selectedPaletteColor = null;
         editingMode = false;
         document.querySelectorAll('.palette-color').forEach(el => el.classList.remove('selected'));
-    } else {
-        gradientControls.style.display = 'none';
-        paletteInstructions.style.display = 'block';
     }
+
+    updateModeVisibility();
     updateModeButtons();
     drawCanvas(ctx);
 });
@@ -253,6 +300,7 @@ lightMinLuminosity.addEventListener('input', (e) => {
 logoScale.addEventListener('input', (e) => {
     state.logoScale = parseInt(e.target.value);
     document.getElementById('logoScaleLabel').textContent = state.logoScale;
+    state.cachedModuleColors = {}; // Clear color cache when logo size changes
     drawCanvas(ctx);
 });
 
@@ -281,14 +329,29 @@ deleteModeBtn.addEventListener('click', () => {
     updateModeButtons();
 });
 
-// Setup panel toggle
-setupToggle.addEventListener('click', () => {
-    const isHidden = setupPanel.style.display === 'none';
-    setupPanel.style.display = isHidden ? 'block' : 'none';
-    setupArrow.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+// Advanced settings toggle
+advancedToggle.addEventListener('click', () => {
+    const isHidden = advancedPanel.style.display === 'none';
+    advancedPanel.style.display = isHidden ? 'block' : 'none';
+    advancedArrow.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
 });
 
-// Tab switching for QR Code section
+// Main tab switching for Files and Customization
+document.querySelectorAll('.main-tab-header').forEach(tabHeader => {
+    tabHeader.addEventListener('click', () => {
+        const targetTab = tabHeader.dataset.tab;
+
+        // Remove active class from all headers and panes
+        document.querySelectorAll('.main-tab-header').forEach(h => h.classList.remove('active'));
+        document.querySelectorAll('.main-tab-pane').forEach(p => p.classList.remove('active'));
+
+        // Add active class to clicked header and corresponding pane
+        tabHeader.classList.add('active');
+        document.getElementById(targetTab).classList.add('active');
+    });
+});
+
+// Tab switching for QR Code section (nested tabs if any)
 document.querySelectorAll('.tab-header').forEach(tabHeader => {
     tabHeader.addEventListener('click', () => {
         const targetTab = tabHeader.dataset.tab;
@@ -372,15 +435,6 @@ logoSelect.addEventListener('change', (e) => {
             });
     }
 });
-
-// Palette toggle
-paletteToggle.addEventListener('click', () => {
-    const isHidden = paletteEditor.style.display === 'none';
-    paletteEditor.style.display = isHidden ? 'block' : 'none';
-    paletteArrow.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
-});
-
-// Function to update palette UI from state
 
 // Palette color change and selection handlers
 document.querySelectorAll('.palette-color').forEach(input => {
@@ -739,6 +793,8 @@ exportBtn.addEventListener('click', () => {
 // Initial setup
 updatePaletteUI();
 updateModeButtons();
+updateModuleSizeLabel();
+updateModeVisibility();
 
 
 // Initialize canvas on page load

@@ -243,3 +243,41 @@ canvas {
 .tab-pane.active {
     display: block;
 }
+
+/* Main Tab Styles */
+.main-tab-headers {
+    display: flex;
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 16px;
+}
+.main-tab-header {
+    flex: 1;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b7280;
+    transition: all 0.2s;
+}
+.main-tab-header:hover {
+    color: #374151;
+    background-color: #f9fafb;
+}
+.main-tab-header.active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+    background-color: transparent;
+}
+.main-tab-content {
+    padding: 0;
+}
+.main-tab-pane {
+    display: none;
+}
+.main-tab-pane.active {
+    display: block;
+}
