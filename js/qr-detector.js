@@ -178,8 +178,11 @@ export function detectQRGeometry(img) {
 
     console.log('Raw module count:', moduleCount);
 
-    // Snap to standard QR code sizes (21, 25, 29, 33, 37, 41, 45, 49, 53, 57)
-    const standardSizes = [21, 25, 29, 33, 37, 41, 45, 49, 53, 57];
+    // Snap to standard QR code sizes (Version 1-40: 21 to 177, incrementing by 4)
+    const standardSizes = [];
+    for (let v = 1; v <= 40; v++) {
+        standardSizes.push(21 + (v - 1) * 4);
+    }
 
     // Find candidate sizes (within ±2 of estimated count)
     const candidates = standardSizes.filter(size => Math.abs(size - moduleCount) <= 2);
