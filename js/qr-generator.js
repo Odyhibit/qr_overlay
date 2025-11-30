@@ -8,94 +8,53 @@ import { detectQRGeometry } from './qr-detector.js';
 
 /**
  * Generate QR code from text input
- * Uses QRCode.js library and auto-detects the generated code dimensions
+ * Uses qrcode-generator library which properly supports all QR versions 1-40
  * @param {Function} drawCanvasCallback - Callback to redraw canvas after generation
  * @param {Function} updateModeButtonsCallback - Callback to update UI buttons
  */
 export function generateQRCode(drawCanvasCallback, updateModeButtonsCallback) {
     if (!state.qrText.trim()) return;
 
-    // Create a temporary container for QRCode.js
-    const tempDiv = document.createElement('div');
-    tempDiv.style.display = 'none';
-    document.body.appendChild(tempDiv);
-
     try {
-        // Generate QR code using QRCode.js
-        const qr = new QRCode(tempDiv, {
-            text: state.qrText,
-            width: 200,
-            height: 200,
-            colorDark: "#000000",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel[state.eccLevel]
-        });
+        // Generate QR code using qrcode-generator library
+        // typeNumber 0 means auto-detect optimal version
+        const qr = window.qrcode(0, state.eccLevel);
+        qr.addData(state.qrText);
+        qr.make();
 
-        // Wait for the QR code to be generated
-        setTimeout(() => {
-            // Check if QRCode.js exposes module count directly
-            console.log('QRCode object:', qr);
-            console.log('QRCode properties:', Object.keys(qr));
-            if (qr._oQRCode) {
-                console.log('_oQRCode:', qr._oQRCode);
-                console.log('_oQRCode properties:', Object.keys(qr._oQRCode));
-                if (qr._oQRCode.moduleCount) {
-                    console.log('Module count from library:', qr._oQRCode.moduleCount);
-                }
+        // Get the module count (QR code size)
+        const moduleCount = qr.getModuleCount();
+        console.log(`Generated QR Version: ${(moduleCount - 17) / 4 + 1}, Size: ${moduleCount}×${moduleCount}`);
+
+        // Create data URL with 10px per module, 0px margin (we handle quiet zone separately)
+        const cellSize = 10;
+        const margin = 0;
+        const dataURL = qr.createDataURL(cellSize, margin);
+
+        // Update state
+        state.generatedQR = dataURL;
+        state.useUploadedQR = false;
+        state.moduleColors = {};  // Clear manual color overrides
+        state.qrSize = moduleCount;
+        state.quietZonePixels = 0;  // qrcode-generator doesn't add quiet zone to the image
+
+        // Auto-adjust logo scale to fit content area
+        if (state.logoImage) {
+            const totalModules = state.qrSize + 2 * state.canvasQuietZone;
+            const contentScale = Math.round((state.qrSize / totalModules) * 100);
+            state.logoScale = contentScale;
+            const logoScaleInput = document.getElementById('logoScale');
+            if (logoScaleInput) {
+                logoScaleInput.value = contentScale;
+                const label = document.getElementById('logoScaleLabel');
+                if (label) label.textContent = contentScale;
             }
+        }
 
-            const qrImage = tempDiv.querySelector('img');
-            if (qrImage) {
-                state.generatedQR = qrImage.src;
-                state.useUploadedQR = false;
-                state.moduleColors = {};  // Clear manual color overrides
-
-                // Check if we can get module count directly from the library
-                let moduleCountFromLib = null;
-                if (qr._oQRCode && qr._oQRCode.moduleCount) {
-                    moduleCountFromLib = qr._oQRCode.moduleCount;
-                }
-
-                // Auto-detect the generated QR code
-                const img = new Image();
-                img.onload = () => {
-                    // Use library-provided module count if available, otherwise detect
-                    if (moduleCountFromLib) {
-                        state.qrSize = moduleCountFromLib;
-                        state.quietZonePixels = 0;  // QRCode.js doesn't add quiet zone to the image
-                        console.log(`Generated: ${moduleCountFromLib}×${moduleCountFromLib} QR code (from library)`);
-                    } else {
-                        const detected = detectQRGeometry(img);
-                        state.qrSize = detected.moduleCount;
-                        state.quietZonePixels = detected.quietZonePixels;
-                        console.log(`Generated: ${detected.moduleCount}×${detected.moduleCount} QR code with ${detected.quietZonePixels}px quiet zone (detected)`);
-                    }
-
-                    // Auto-adjust logo scale to fit content area
-                    if (state.logoImage) {
-                        const totalModules = state.qrSize + 2 * state.canvasQuietZone;
-                        const contentScale = Math.round((state.qrSize / totalModules) * 100);
-                        state.logoScale = contentScale;
-                        const logoScaleInput = document.getElementById('logoScale');
-                        if (logoScaleInput) {
-                            logoScaleInput.value = contentScale;
-                            const label = document.getElementById('logoScaleLabel');
-                            if (label) label.textContent = contentScale;
-                        }
-                    }
-
-                    drawCanvasCallback();
-                    updateModeButtonsCallback();
-                };
-                img.src = state.generatedQR;
-            }
-
-            // Clean up temp div
-            document.body.removeChild(tempDiv);
-        }, 100);
+        drawCanvasCallback();
+        updateModeButtonsCallback();
     } catch (error) {
         console.error('QR generation error:', error);
-        document.body.removeChild(tempDiv);
         alert('Failed to generate QR code. Please check your input.');
     }
 }

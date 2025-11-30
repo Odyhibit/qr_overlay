@@ -297,3 +297,109 @@ export function isFinderPattern(x, y, contentModules) {
 
     return false;
 }
+
+/**
+ * Get alignment pattern center positions for a given QR code size
+ * Based on QR Code specification - alignment patterns help scanners with larger codes
+ * @param {number} contentModules - Total number of modules in QR code
+ * @returns {Array<{x: number, y: number}>} Array of alignment pattern centers
+ */
+export function getAlignmentPatternCenters(contentModules) {
+    // Alignment pattern positions by QR version
+    // Version 1 has no alignment patterns
+    // Versions 2+ have alignment patterns at specific row/column positions
+    const alignmentTable = {
+        25: [6, 18],           // Version 2
+        29: [6, 22],           // Version 3
+        33: [6, 26],           // Version 4
+        37: [6, 30],           // Version 5
+        41: [6, 34],           // Version 6
+        45: [6, 22, 38],       // Version 7
+        49: [6, 24, 42],       // Version 8
+        53: [6, 26, 46],       // Version 9
+        57: [6, 28, 50],       // Version 10
+        61: [6, 30, 54],       // Version 11
+        65: [6, 32, 58],       // Version 12
+        69: [6, 34, 62],       // Version 13
+        73: [6, 26, 46, 66],   // Version 14
+        77: [6, 26, 48, 70],   // Version 15
+        81: [6, 26, 50, 74],   // Version 16
+        85: [6, 30, 54, 78],   // Version 17
+        89: [6, 30, 56, 82],   // Version 18
+        93: [6, 30, 58, 86],   // Version 19
+        97: [6, 34, 62, 90],   // Version 20
+        101: [6, 28, 50, 72, 94],      // Version 21
+        105: [6, 26, 50, 74, 98],      // Version 22
+        109: [6, 30, 54, 78, 102],     // Version 23
+        113: [6, 28, 54, 80, 106],     // Version 24
+        117: [6, 32, 58, 84, 110],     // Version 25
+        121: [6, 30, 58, 86, 114],     // Version 26
+        125: [6, 34, 62, 90, 118],     // Version 27
+        129: [6, 26, 50, 74, 98, 122], // Version 28
+        133: [6, 30, 54, 78, 102, 126], // Version 29
+        137: [6, 26, 52, 78, 104, 130], // Version 30
+        141: [6, 30, 56, 82, 108, 134], // Version 31
+        145: [6, 34, 60, 86, 112, 138], // Version 32
+        149: [6, 30, 58, 86, 114, 142], // Version 33
+        153: [6, 34, 62, 90, 118, 146], // Version 34
+        157: [6, 30, 54, 78, 102, 126, 150], // Version 35
+        161: [6, 24, 50, 76, 102, 128, 154], // Version 36
+        165: [6, 28, 54, 80, 106, 132, 158], // Version 37
+        169: [6, 32, 58, 84, 110, 136, 162], // Version 38
+        173: [6, 26, 54, 82, 110, 138, 166], // Version 39
+        177: [6, 30, 58, 86, 114, 142, 170], // Version 40
+    };
+
+    const positions = alignmentTable[contentModules];
+    if (!positions) {
+        return []; // No alignment patterns for this size (version 1)
+    }
+
+    const centers = [];
+    const finderSize = 8;
+
+    // Alignment patterns appear at all combinations of positions
+    // EXCEPT where they would overlap with finder patterns
+    for (const row of positions) {
+        for (const col of positions) {
+            // Skip if this would overlap with a finder pattern
+            const isTopLeft = (row < finderSize && col < finderSize);
+            const isTopRight = (row < finderSize && col >= contentModules - finderSize);
+            const isBottomLeft = (row >= contentModules - finderSize && col < finderSize);
+
+            if (!isTopLeft && !isTopRight && !isBottomLeft) {
+                centers.push({ x: col, y: row });
+            }
+        }
+    }
+
+    return centers;
+}
+
+/**
+ * Check if given coordinates are within an alignment pattern
+ * Alignment patterns are 5x5 and appear in QR codes version 2 and higher
+ * @param {number} x - X coordinate in content space (0 to contentModules-1)
+ * @param {number} y - Y coordinate in content space (0 to contentModules-1)
+ * @param {number} contentModules - Total number of modules in QR code
+ * @returns {boolean} True if coordinates are in an alignment pattern
+ */
+export function isAlignmentPattern(x, y, contentModules) {
+    // Alignment pattern is 5x5
+    const alignmentRadius = 2; // Distance from center
+
+    // Get alignment pattern centers for this QR version
+    const centers = getAlignmentPatternCenters(contentModules);
+
+    // Check if (x, y) is within any alignment pattern
+    for (const center of centers) {
+        const dx = Math.abs(x - center.x);
+        const dy = Math.abs(y - center.y);
+
+        if (dx <= alignmentRadius && dy <= alignmentRadius) {
+            return true;
+        }
+    }
+
+    return false;
+}

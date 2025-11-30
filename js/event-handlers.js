@@ -607,10 +607,11 @@ function handleModuleClick(canvasX, canvasY) {
         const contentX = moduleX - canvasQuietZone;
         const contentY = moduleY - canvasQuietZone;
 
-        // Check if it's a finder pattern (can't edit finders)
+        // Check if it's a finder or alignment pattern (can't edit functional patterns)
         const isFinder = isFinderPattern(contentX, contentY, contentModules);
+        const isAlignment = isAlignmentPattern(contentX, contentY, contentModules);
 
-        if (!isFinder) {
+        if (!isFinder && !isAlignment) {
             const key = `${contentX},${contentY}`;
 
             if (state.interactionMode === 'color' && editingMode && selectedPaletteColor) {
