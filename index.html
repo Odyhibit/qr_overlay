@@ -8,9 +8,17 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+        ☰
+    </button>
+
+    <!-- Sidebar Overlay (for mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
     <div class="container">
         <!-- Controls -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <h1>QR Code Generator</h1>
             <!-- Main Tab Container -->
             <div class="section">
@@ -287,6 +295,9 @@
                     <button id="deleteModeBtn" class="mode-button" style="padding: 8px 16px; border: 2px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s;">
                         Delete Module
                     </button>
+                </div>
+                <div style="font-size: 12px; color: #6b7280; text-align: center; margin-top: 8px; padding: 0 8px;">
+                    <strong>Delete Mode:</strong> Click to delete individual modules, or hold <strong>Shift</strong> and drag to delete an area
                 </div>
 
                 <!-- Canvas -->

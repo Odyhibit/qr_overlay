@@ -48,6 +48,12 @@ let dragStartX = 0;
 let dragStartY = 0;
 let logoStartX = 0;
 let logoStartY = 0;
+
+// Area delete state
+let isAreaDeleting = false;
+let areaDeleteStart = null;
+let areaDeleteEnd = null;
+let cachedCanvasImage = null;
 let selectedPaletteColor = null;
 let editingMode = false;
 let selectedColorType = null;
@@ -300,8 +306,14 @@ lightMinLuminosity.addEventListener('input', (e) => {
 logoScale.addEventListener('input', (e) => {
     state.logoScale = parseInt(e.target.value);
     document.getElementById('logoScaleLabel').textContent = state.logoScale;
-    state.cachedModuleColors = {}; // Clear color cache when logo size changes
-    drawCanvas(ctx);
+    // Use skipOverlay to avoid recalculating module colors during drag
+    drawCanvas(ctx, true);
+});
+
+// Clear cache when slider is released to recalculate with accurate colors
+logoScale.addEventListener('change', (e) => {
+    state.cachedModuleColors = {}; // Clear color cache when logo size finalized
+    drawCanvas(ctx); // Full redraw without skipOverlay
 });
 
 // Mode button management
@@ -519,8 +531,31 @@ canvas.addEventListener('mousedown', (e) => {
         return;
     }
 
-    // Color mode or Delete mode: handle module click
-    if (state.interactionMode === 'color' || state.interactionMode === 'delete') {
+    // Delete mode: start area delete if shift is held, otherwise single delete
+    if (state.interactionMode === 'delete') {
+        const rect = canvas.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+
+        if (e.shiftKey) {
+            // Start area delete - cache current canvas to avoid recalculating during drag
+            isAreaDeleting = true;
+            areaDeleteStart = { x: canvasX, y: canvasY };
+            areaDeleteEnd = { x: canvasX, y: canvasY };
+
+            // Cache the current canvas state
+            cachedCanvasImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            canvas.style.cursor = 'crosshair';
+        } else {
+            // Single module delete
+            handleModuleClick(canvasX, canvasY);
+        }
+        return;
+    }
+
+    // Color mode: handle module click
+    if (state.interactionMode === 'color') {
         const rect = canvas.getBoundingClientRect();
         const canvasX = e.clientX - rect.left;
         const canvasY = e.clientY - rect.top;
@@ -532,11 +567,26 @@ canvas.addEventListener('mousedown', (e) => {
 canvas.addEventListener('mousemove', (e) => {
     // Prevent double-firing on touch devices
     if (lastTouchType === 'touch') return;
-    if (!isDragging) return;
 
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
+
+    // Handle area delete dragging
+    if (isAreaDeleting) {
+        areaDeleteEnd = { x: mouseX, y: mouseY };
+
+        // Restore cached canvas image (no recalculation)
+        if (cachedCanvasImage) {
+            ctx.putImageData(cachedCanvasImage, 0, 0);
+        }
+
+        // Draw selection box on top
+        drawAreaDeleteBox(ctx);
+        return;
+    }
+
+    if (!isDragging) return;
 
     // Calculate delta from initial click position
     const deltaX = mouseX - dragStartX;
@@ -557,6 +607,18 @@ canvas.addEventListener('mouseup', () => {
     // Prevent double-firing on touch devices
     if (lastTouchType === 'touch') return;
 
+    // Handle area delete completion
+    if (isAreaDeleting) {
+        performAreaDelete();
+        isAreaDeleting = false;
+        areaDeleteStart = null;
+        areaDeleteEnd = null;
+        cachedCanvasImage = null;
+        updateModeButtons(); // Reset cursor
+        drawCanvas(ctx);
+        return;
+    }
+
     if (isDragging) {
         isDragging = false;
         state.cachedModuleColors = {}; // Clear cache so colors recalculate with new position
@@ -569,6 +631,17 @@ canvas.addEventListener('mouseup', () => {
 canvas.addEventListener('mouseleave', () => {
     // Prevent double-firing on touch devices
     if (lastTouchType === 'touch') return;
+
+    // Cancel area delete if mouse leaves canvas
+    if (isAreaDeleting) {
+        isAreaDeleting = false;
+        areaDeleteStart = null;
+        areaDeleteEnd = null;
+        cachedCanvasImage = null;
+        updateModeButtons();
+        drawCanvas(ctx);
+        return;
+    }
 
     if (isDragging) {
         isDragging = false;
@@ -588,6 +661,92 @@ function getTouchDistance(touch1, touch2) {
 }
 
 // Helper function to handle module click/tap (shared by mouse and touch)
+/**
+ * Draw the area delete selection box
+ */
+function drawAreaDeleteBox(ctx) {
+    if (!areaDeleteStart || !areaDeleteEnd) return;
+
+    ctx.save();
+
+    const x1 = Math.min(areaDeleteStart.x, areaDeleteEnd.x);
+    const y1 = Math.min(areaDeleteStart.y, areaDeleteEnd.y);
+    const x2 = Math.max(areaDeleteStart.x, areaDeleteEnd.x);
+    const y2 = Math.max(areaDeleteStart.y, areaDeleteEnd.y);
+    const width = x2 - x1;
+    const height = y2 - y1;
+
+    // Draw semi-transparent fill
+    ctx.fillStyle = 'rgba(220, 38, 38, 0.1)'; // Light red
+    ctx.fillRect(x1, y1, width, height);
+
+    // Draw border
+    ctx.strokeStyle = '#dc2626'; // Red
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]); // Dashed line
+    ctx.strokeRect(x1, y1, width, height);
+
+    ctx.restore();
+}
+
+/**
+ * Perform area delete on all modules in the selection box
+ */
+function performAreaDelete() {
+    if (!areaDeleteStart || !areaDeleteEnd) return;
+
+    const x1 = Math.min(areaDeleteStart.x, areaDeleteEnd.x);
+    const y1 = Math.min(areaDeleteStart.y, areaDeleteEnd.y);
+    const x2 = Math.max(areaDeleteStart.x, areaDeleteEnd.x);
+    const y2 = Math.max(areaDeleteStart.y, areaDeleteEnd.y);
+
+    // Get QR geometry
+    const totalModules = state.qrSize + 2 * state.canvasQuietZone;
+    const modulePixelSize = canvas.width / totalModules;
+    const canvasQuietZone = state.canvasQuietZone;
+    const contentModules = state.qrSize;
+
+    let deletedCount = 0;
+
+    // Iterate through all modules and check if they're in the box
+    for (let y = 0; y < totalModules; y++) {
+        for (let x = 0; x < totalModules; x++) {
+            // Calculate module's position on canvas
+            const moduleCanvasX = x * modulePixelSize + modulePixelSize / 2;
+            const moduleCanvasY = y * modulePixelSize + modulePixelSize / 2;
+
+            // Check if module center is within selection box
+            if (moduleCanvasX >= x1 && moduleCanvasX <= x2 &&
+                moduleCanvasY >= y1 && moduleCanvasY <= y2) {
+
+                // Check if in quiet zone
+                const inQuietZone = x < canvasQuietZone || x >= totalModules - canvasQuietZone ||
+                                   y < canvasQuietZone || y >= totalModules - canvasQuietZone;
+
+                if (!inQuietZone) {
+                    // Convert to content coordinates
+                    const contentX = x - canvasQuietZone;
+                    const contentY = y - canvasQuietZone;
+
+                    // Check if it's a finder pattern (can't delete functional patterns)
+                    const isFinder = isFinderPattern(contentX, contentY, contentModules);
+
+                    if (!isFinder) {
+                        const key = `${contentX},${contentY}`;
+                        // Mark module as hidden (same as single delete)
+                        state.moduleColors[key] = {
+                            type: 'hidden'
+                        };
+                        deletedCount++;
+                    }
+                }
+            }
+        }
+    }
+
+    console.log(`Area delete: hidden ${deletedCount} modules`);
+}
+
 function handleModuleClick(canvasX, canvasY) {
     const canvasSize = 600;
     const contentModules = state.qrSize;
@@ -813,6 +972,38 @@ updateModeButtons();
 updateModuleSizeLabel();
 updateModeVisibility();
 
+// ======================
+// Mobile Menu Toggle
+// ======================
+const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+const sidebar = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+if (mobileMenuToggle && sidebar && sidebarOverlay) {
+    // Toggle sidebar on button click
+    mobileMenuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('mobile-open');
+        sidebarOverlay.classList.toggle('active');
+    });
+
+    // Close sidebar when overlay is clicked
+    sidebarOverlay.addEventListener('click', () => {
+        sidebar.classList.remove('mobile-open');
+        sidebarOverlay.classList.remove('active');
+    });
+
+    // Close sidebar when clicking inside it (after making a selection)
+    sidebar.addEventListener('click', (e) => {
+        // Only close if we're in mobile view (check if overlay is active)
+        if (sidebarOverlay.classList.contains('active')) {
+            // Don't close if clicking on inputs, sliders, or interactive elements
+            if (!e.target.matches('input, select, button, label, .palette-color')) {
+                sidebar.classList.remove('mobile-open');
+                sidebarOverlay.classList.remove('active');
+            }
+        }
+    });
+}
 
 // Initialize canvas on page load
 console.log('Event handlers loaded');
