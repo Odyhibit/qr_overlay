@@ -12,7 +12,6 @@
         <!-- Controls -->
         <div class="sidebar">
             <h1>QR Code Generator</h1>
-
             <!-- Main Tab Container -->
             <div class="section">
                 <!-- Tab Headers -->
@@ -259,6 +258,16 @@
             </div>
 
             <!-- Export -->
+            <div class="section" style="padding: 0; margin-bottom: 12px;">
+                <label>Export Filename</label>
+                <input
+                    type="text"
+                    id="exportFilename"
+                    value="custom-qr-code"
+                    placeholder="Enter filename (without .png)"
+                    style="margin-bottom: 8px;"
+                />
+            </div>
             <button id="exportBtn" class="success">
                 <span>Export PNG</span>
             </button>

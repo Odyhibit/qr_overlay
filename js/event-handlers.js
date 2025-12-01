@@ -607,11 +607,10 @@ function handleModuleClick(canvasX, canvasY) {
         const contentX = moduleX - canvasQuietZone;
         const contentY = moduleY - canvasQuietZone;
 
-        // Check if it's a finder or alignment pattern (can't edit functional patterns)
+        // Check if it's a finder pattern (can't edit finder patterns)
         const isFinder = isFinderPattern(contentX, contentY, contentModules);
-        const isAlignment = isAlignmentPattern(contentX, contentY, contentModules);
 
-        if (!isFinder && !isAlignment) {
+        if (!isFinder) {
             const key = `${contentX},${contentY}`;
 
             if (state.interactionMode === 'color' && editingMode && selectedPaletteColor) {
@@ -767,12 +766,29 @@ eccLevel.addEventListener('change', (e) => {
 });
 
 exportBtn.addEventListener('click', () => {
+    // Get filename from input and sanitize
+    let filename = document.getElementById('exportFilename').value.trim();
+
+    // Remove any .png extension if user added it
+    filename = filename.replace(/\.png$/i, '');
+
+    // Sanitize filename - remove invalid characters
+    filename = filename.replace(/[^a-z0-9_-]/gi, '_');
+
+    // Use default if empty
+    if (!filename) {
+        filename = 'custom-qr-code';
+    }
+
+    // Add .png extension
+    const fullFilename = filename + '.png';
+
     try {
         canvas.toBlob((blob) => {
             if (blob) {
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
-                link.download = 'custom-qr-code.png';
+                link.download = fullFilename;
                 link.href = url;
                 document.body.appendChild(link);
                 link.click();
@@ -783,7 +799,7 @@ exportBtn.addEventListener('click', () => {
     } catch (error) {
         console.error('Export error:', error);
         const link = document.createElement('a');
-        link.download = 'custom-qr-code.png';
+        link.download = fullFilename;
         link.href = canvas.toDataURL('image/png');
         document.body.appendChild(link);
         link.click();
