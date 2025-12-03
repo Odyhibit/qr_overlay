@@ -258,7 +258,7 @@ canvas {
     border-bottom: 2px solid transparent;
     margin-bottom: -2px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
     color: #6b7280;
     transition: all 0.2s;

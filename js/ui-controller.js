@@ -65,6 +65,16 @@ export function updateModeButtons() {
     } else {
         canvas.style.cursor = 'default';
     }
+
+    // Show/hide delete mode hint
+    const deleteModeHint = document.getElementById('deleteModeHint');
+    if (deleteModeHint) {
+        if (state.interactionMode === 'delete') {
+            deleteModeHint.classList.remove('hidden');
+        } else {
+            deleteModeHint.classList.add('hidden');
+        }
+    }
 }
 
 /**
